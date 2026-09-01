@@ -3,8 +3,8 @@
 module.exports = {
   async up(queryInterface) {
     await queryInterface.bulkInsert('users', [
-      { username: 'admin', email: 'admin@f1stats.test', passwordHash: 'placeholder-admin-hash', role: 'ADMIN', createdAt: new Date(), updatedAt: new Date() },
-      { username: 'maxfan', email: 'maxfan@f1stats.test', passwordHash: 'placeholder-user-hash', role: 'USER', createdAt: new Date(), updatedAt: new Date() },
+      { username: 'admin', email: 'admin@f1stats.test', passwordHash: '$2b$10$PdvgdIQTw2oa5gD0BuEI6eWPFXfa0a.JRKyw4aQHkkn9nUpwKep0e', role: 'ADMIN', createdAt: new Date(), updatedAt: new Date() },
+      { username: 'maxfan', email: 'maxfan@f1stats.test', passwordHash: '$2b$10$X61gU0qBJdza4hPW5/YAMuc8qXTRozBr0F6vkFFQhW9AnQwjLpTSu', role: 'USER', createdAt: new Date(), updatedAt: new Date() },
     ], {});
 
     await queryInterface.bulkInsert('drivers', [
