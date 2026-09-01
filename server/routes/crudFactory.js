@@ -10,6 +10,8 @@ function buildCrudRouter({
   resource,
   includes = [],
   rejectUnknownFields = true,
+  auth = [],
+  sanitize,
 }) {
   const router = express.Router();
 
@@ -18,6 +20,12 @@ function buildCrudRouter({
       options.include = includes;
     }
     return { where, ...options };
+  }
+
+  function clean(record) {
+    if (!sanitize) return record;
+    if (Array.isArray(record)) return record.map((r) => sanitize(r));
+    return sanitize(record);
   }
 
   function handleSequelizeError(err, res) {
@@ -38,7 +46,7 @@ function buildCrudRouter({
 
   router.get('/', async (req, res) => {
     const records = await model.findAll(applyIncludes());
-    res.json(records);
+    res.json(clean(records));
   });
 
   router.get('/:id', async (req, res) => {
@@ -50,19 +58,19 @@ function buildCrudRouter({
     if (!record) {
       return res.status(404).json({ error: `Invalid id` });
     }
-    res.json(record);
+    res.json(clean(record));
   });
 
-  router.post('/', async (req, res) => {
+  router.post('/', auth, async (req, res) => {
     try {
       const record = await model.create(req.body, applyIncludes());
-      res.status(201).json(record);
+      res.status(201).json(clean(record));
     } catch (err) {
       return handleSequelizeError(err, res);
     }
   });
 
-  router.put('/:id', async (req, res) => {
+  router.put('/:id', auth, async (req, res) => {
     const id = parseId(req.params.id);
     if (id === null) {
       return res.status(400).json({ error: 'Invalid id' });
@@ -74,13 +82,13 @@ function buildCrudRouter({
       }
       await record.update(req.body);
       const updated = await model.findByPk(id, applyIncludes());
-      res.json(updated);
+      res.json(clean(updated));
     } catch (err) {
       return handleSequelizeError(err, res);
     }
   });
 
-  router.delete('/:id', async (req, res) => {
+  router.delete('/:id', auth, async (req, res) => {
     const id = parseId(req.params.id);
     if (id === null) {
       return res.status(400).json({ error: 'Invalid id' });

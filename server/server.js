@@ -8,6 +8,7 @@ const racesRouter = require('./routes/races');
 const seasonTeamsRouter = require('./routes/seasonTeams');
 const raceResultsRouter = require('./routes/raceResults');
 const usersRouter = require('./routes/users');
+const authRouter = require('./routes/auth');
 const { notFound, errorHandler } = require('./middleware/errorHandler');
 
 const PORT = process.env.PORT || 3000;
@@ -25,6 +26,7 @@ app.use('/api/races', racesRouter);
 app.use('/api/season-teams', seasonTeamsRouter);
 app.use('/api/race-results', raceResultsRouter);
 app.use('/api/users', usersRouter);
+app.use('/api/auth', authRouter);
 
 app.use(notFound);
 app.use(errorHandler);
