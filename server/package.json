@@ -1,0 +1,20 @@
+{
+  "name": "f1-stats-server",
+  "version": "1.0.0",
+  "description": "F1 Stats & Predictor - backend server (Lab 1)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "keywords": ["f1", "express", "rest-api"],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}
