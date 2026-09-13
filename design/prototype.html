@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>F1 Stats & Predictor - Prototype</title>
+    <style>
+        :root {
+            --bg-main: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --accent: #0ea5e9;
+            --border: #e2e8f0;
+        }
+
+        body.dark {
+            --bg-main: #09090b;
+            --card-bg: #18181b;
+            --text-main: #f4f4f5;
+            --text-muted: #a1a1aa;
+            --accent: #dc2626;
+            --border: #27272a;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 15px;
+        }
+
+        button {
+            background-color: var(--accent);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        h2 { margin-top: 0; font-size: 1.25rem; }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border);
+        }
+        .stat-row:last-child { border-bottom: none; }
+
+        .badge {
+            background-color: var(--accent);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body class="dark">
+    <div class="container">
+        <header>
+            <h1>Simply Lovely</h1>
+            <button onclick="toggleTheme()">Переключить тему</button>
+        </header>
+
+        <div class="grid">
+            <div>
+                <div class="card">
+                    <h2>Ближайший Гран-при: Монако</h2>
+                    <p style="color: var(--text-muted);">Старт гонки через: 2 дня 14 часов</p>
+                    <div style="background: var(--border); height: 8px; border-radius: 4px; overflow: hidden; margin-top: 15px;">
+                        <div style="background: var(--accent); width: 65%; height: 100%;"></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>Прогноз алгоритма (Softmax Top-3)</h2>
+                    <div class="stat-row">
+                        <span>1. М. Ферстаппен (Red Bull)</span>
+                        <span class="badge">42%</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>2. Л. Хэмилтон (Ferrari)</span>
+                        <span class="badge">28%</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>3. Ш. Леклер (Ferrari)</span>
+                        <span class="badge">18%</span>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <div class="card">
+                    <h2>Погода на автодроме</h2>
+                    <p>☀️ Температура: <strong>+24°C</strong></p>
+                    <p>🌧️ Вероятность осадков: <strong>10%</strong></p>
+                </div>
+
+                <div class="card">
+                    <h2>Личный кабинет</h2>
+                    <p>Роль: <span class="badge">USER</span></p>
+                    <p style="color: var(--text-muted);">Избранных пилотов: 2</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function toggleTheme() {
+            document.body.classList.toggle('dark');
+        }
+    </script>
+</body>
+</html>
