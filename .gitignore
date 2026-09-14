@@ -9,6 +9,7 @@ node_modules/
 # Контекст ИИ (не для репозитория)
 .opencode/
 AGENTS.md
+design/guidelines.md
 
 # Сборки и логи
 dist/
