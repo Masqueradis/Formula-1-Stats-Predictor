@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 
-const NAV_ITEMS = [
+const PUBLIC_ITEMS = [
   { to: '/', label: 'Главная', end: true },
   { to: '/drivers', label: 'Пилоты' },
   { to: '/teams', label: 'Команды' },
@@ -10,9 +11,17 @@ const NAV_ITEMS = [
 ]
 
 export default function NavBar() {
+  const { user } = useAuth()
+
+  const items = [
+    ...PUBLIC_ITEMS,
+    ...(user ? [{ to: '/cabinet', label: 'Кабинет' }] : []),
+    ...(user?.role === 'ADMIN' ? [{ to: '/admin', label: 'Админ' }] : []),
+  ]
+
   return (
     <nav className="flex flex-wrap items-center gap-1">
-      {NAV_ITEMS.map((item) => (
+      {items.map((item) => (
         <NavLink
           key={item.to}
           to={item.to}

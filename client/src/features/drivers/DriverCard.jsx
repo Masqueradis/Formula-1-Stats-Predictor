@@ -1,63 +1,19 @@
 import { useState } from 'react'
-import { teamColor, TEAM_NAMES } from './driversData'
-import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
-import Input from '../../components/ui/Input'
-import Select from '../../components/ui/Select'
 
-export default function DriverCard({ driver, isEditing, onStartEdit, onCancelEdit, onSaveEdit, onDelete }) {
+export default function DriverCard({ driver }) {
   const [imgFailed, setImgFailed] = useState(false)
 
-  const [form, setForm] = useState({
-    firstName: driver.firstName,
-    lastName: driver.lastName,
-    abbreviation: driver.abbreviation,
-    number: driver.number,
-    team: driver.team,
-    nationality: driver.nationality,
-  })
-
-  const color = teamColor(driver.team)
-  const showPhoto = driver.photo && !imgFailed
-
-  const handleChange = (e) => {
-    const { name, value } = e.target
-    setForm((f) => ({ ...f, [name]: name === 'abbreviation' ? value.toUpperCase() : value }))
-  }
-
-  if (isEditing) {
-    return (
-      <Card className="flex h-full flex-col p-4 sm:p-5">
-        <p className="mb-3 text-sm font-bold text-primary dark:text-accent">Редактирование</p>
-        <div className="grid grid-cols-2 gap-3">
-          <Input label="Имя" name="firstName" value={form.firstName} onChange={handleChange} />
-          <Input label="Фамилия" name="lastName" value={form.lastName} onChange={handleChange} />
-          <Input label="Аббр. (3)" name="abbreviation" value={form.abbreviation} onChange={handleChange} maxLength={3} />
-          <Input label="Номер" type="number" name="number" value={form.number} onChange={handleChange} />
-          <Input label="Национальность" name="nationality" value={form.nationality} onChange={handleChange} />
-          <div className="col-span-2">
-            <Select label="Команда" name="team" value={form.team} onChange={handleChange}>
-              <option value="">— выберите —</option>
-              {TEAM_NAMES.map((t) => (
-                <option key={t} value={t}>{t}</option>
-              ))}
-            </Select>
-          </div>
-        </div>
-        <div className="mt-4 flex gap-2">
-          <Button size="sm" onClick={() => onSaveEdit(driver.id, form)}>Сохранить</Button>
-          <Button size="sm" variant="outline" onClick={onCancelEdit}>Отмена</Button>
-        </div>
-      </Card>
-    )
-  }
+  const teamName = driver.team?.name || 'Без команды'
+  const color = driver.team?.color || '#0ea5e9'
+  const showPhoto = driver.imageUrl && !imgFailed
 
   return (
     <Card className="flex h-full flex-col overflow-hidden">
-      <div className="relative h-40 shrink-0 w-full">
+      <div className="relative h-40 w-full shrink-0">
         {showPhoto ? (
           <img
-            src={driver.photo}
+            src={driver.imageUrl}
             alt={`${driver.firstName} ${driver.lastName}`}
             loading="lazy"
             className="h-full w-full object-cover object-top"
@@ -82,23 +38,14 @@ export default function DriverCard({ driver, isEditing, onStartEdit, onCancelEdi
           {driver.firstName} {driver.lastName}
         </h3>
         <p className="mt-0.5 text-sm text-muted dark:text-muted-dark">
-          {driver.nationality} · №{driver.number}
+          {driver.nationality} · №{driver.number} · подиумы: {driver.podiums || 0}
         </p>
 
         <div className="mt-3 flex min-w-0 items-center gap-2">
           <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: color }} aria-hidden />
           <span className="truncate text-xs font-semibold uppercase tracking-wider text-muted dark:text-muted-dark">
-            {driver.team}
+            {teamName}
           </span>
-        </div>
-
-        <div className="mt-auto flex flex-col gap-2 pt-5">
-          <Button variant="outline" size="xs" className="w-full" onClick={() => onStartEdit(driver.id)}>
-            Редактировать
-          </Button>
-          <Button variant="danger" size="xs" className="w-full" onClick={() => onDelete(driver.id)}>
-            Удалить
-          </Button>
         </div>
       </div>
     </Card>
