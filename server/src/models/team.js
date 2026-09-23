@@ -24,6 +24,11 @@ module.exports = (sequelize, DataTypes) => {
       primaryKey: true,
       autoIncrement: true,
     },
+    externalId: {
+      type: DataTypes.STRING(100),
+      allowNull: true,
+      unique: true,
+    },
     name: {
       type: DataTypes.STRING(100),
       allowNull: false,

@@ -36,6 +36,7 @@ module.exports = (sequelize, DataTypes) => {
     timestamps: true,
     indexes: [
       {
+        name: 'season_teams_season_team_driver_unique',
         unique: true,
         fields: ['season', 'teamId', 'driverId'],
       },

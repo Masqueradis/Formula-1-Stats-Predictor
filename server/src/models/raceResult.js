@@ -6,6 +6,7 @@ module.exports = (sequelize, DataTypes) => {
     static associate(models) {
       RaceResult.belongsTo(models.Race, { foreignKey: 'raceId', as: 'race' });
       RaceResult.belongsTo(models.Driver, { foreignKey: 'driverId', as: 'driver' });
+      RaceResult.belongsTo(models.Team, { foreignKey: 'teamId', as: 'team' });
     }
   }
 
@@ -25,6 +26,11 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false,
       references: { model: 'drivers', key: 'id' },
     },
+    teamId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: { model: 'teams', key: 'id' },
+    },
     position: {
       type: DataTypes.INTEGER,
       allowNull: true,
@@ -42,13 +48,18 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: true,
       defaultValue: false,
     },
+    sessionType: {
+      type: DataTypes.ENUM('race', 'sprint'),
+      allowNull: false,
+      defaultValue: 'race',
+    },
   }, {
     sequelize,
     modelName: 'RaceResult',
     tableName: 'race_results',
     timestamps: true,
     indexes: [
-      { unique: true, fields: ['raceId', 'driverId'] },
+      { name: 'race_results_race_driver_session_unique', unique: true, fields: ['raceId', 'driverId', 'sessionType'] },
     ],
   });
 

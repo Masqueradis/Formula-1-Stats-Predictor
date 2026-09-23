@@ -24,6 +24,16 @@ async function login(req, res) {
   }
 }
 
+async function verify(req, res) {
+  try {
+    const result = await authService.verify(req.params.token);
+    if (result.error) return apiResponse.error(res, result.error, result.status || 400);
+    return apiResponse.success(res, result);
+  } catch (err) {
+    return apiResponse.error(res, 'Verification failed', 500, err.message);
+  }
+}
+
 async function me(req, res) {
   try {
     const result = await authService.getMe(req.user.id);
@@ -34,4 +44,4 @@ async function me(req, res) {
   }
 }
 
-module.exports = { register, login, me };
+module.exports = { register, login, verify, me };

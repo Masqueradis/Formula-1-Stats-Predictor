@@ -21,6 +21,8 @@ async function findAllWithOptions({ search, teamId, include }) {
 
   const includes = include !== false ? DRIVER_INCLUDES : undefined;
 
+  const order = [[{ model: SeasonTeam, as: 'seasonTeams' }, 'id', 'ASC']];
+
   if (teamId) {
     return Driver.findAll({
       where,
@@ -32,14 +34,18 @@ async function findAllWithOptions({ search, teamId, include }) {
           include: [{ association: 'team' }],
         },
       ],
+      order,
     });
   }
 
-  return Driver.findAll({ where, include: includes });
+  return Driver.findAll({ where, include: includes, order });
 }
 
 async function findByIdWithDetails(id) {
-  return Driver.findByPk(id, { include: DRIVER_INCLUDES });
+  return Driver.findByPk(id, {
+    include: DRIVER_INCLUDES,
+    order: [[{ model: SeasonTeam, as: 'seasonTeams' }, 'id', 'ASC']],
+  });
 }
 
 async function create(data, options = {}) {

@@ -16,10 +16,10 @@ const SIZES = {
   lg: 'px-5 py-2.5 text-base',
 }
 
-export default function Button({ variant = 'primary', size = 'md', className = '', children, ...props }) {
+export default function Button({ variant = 'primary', size = 'md', type = 'button', className = '', children, ...props }) {
   return (
     <button
-      type="button"
+      type={type}
       className={`rounded-lg font-semibold transition-colors ${VARIANTS[variant]} ${SIZES[size]} ${className}`}
       {...props}
     >

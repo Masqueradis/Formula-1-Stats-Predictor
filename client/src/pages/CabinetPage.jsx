@@ -1,77 +1,15 @@
-import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import api from '../api'
-import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
-import Spinner from '../components/ui/Spinner'
 
 export default function CabinetPage() {
-  const { user, refreshMe } = useAuth()
-  const [drivers, setDrivers] = useState([])
-  const [teams, setTeams] = useState([])
-  const [favDrivers, setFavDrivers] = useState(user?.favoriteDrivers || [])
-  const [favTeams, setFavTeams] = useState(user?.favoriteTeams || [])
-  const [loading, setLoading] = useState(true)
-  const [actionLoading, setActionLoading] = useState(false)
-
-  useEffect(() => {
-    async function load() {
-      setLoading(true)
-      try {
-        const [dRes, tRes] = await Promise.all([api.get('/drivers'), api.get('/teams')])
-        setDrivers(dRes.data.data || [])
-        setTeams(tRes.data.data || [])
-        if (user?.id) {
-          const meRes = await api.get('/auth/me')
-          setFavDrivers(meRes.data.data.favoriteDrivers || [])
-          setFavTeams(meRes.data.data.favoriteTeams || [])
-        }
-      } catch { /* silent */ }
-      setLoading(false)
-    }
-    load()
-  }, [user?.id])
-
-  const favDriverIds = useMemo(() => new Set(favDrivers.map(d => d.id)), [favDrivers])
-  const favTeamIds = useMemo(() => new Set(favTeams.map(t => t.id)), [favTeams])
-
-  const toggleFavDriver = async (driverId) => {
-    setActionLoading(true)
-    try {
-      if (favDriverIds.has(driverId)) {
-        await api.delete(`/users/${user.id}/favorite-drivers/${driverId}`)
-        setFavDrivers(prev => prev.filter(d => d.id !== driverId))
-      } else {
-        await api.post(`/users/${user.id}/favorite-drivers`, { driverId })
-        const driver = drivers.find(d => d.id === driverId)
-        if (driver) setFavDrivers(prev => [...prev, driver])
-      }
-    } catch { /* silent */ }
-    setActionLoading(false)
-  }
-
-  const toggleFavTeam = async (teamId) => {
-    setActionLoading(true)
-    try {
-      if (favTeamIds.has(teamId)) {
-        await api.delete(`/users/${user.id}/favorite-teams/${teamId}`)
-        setFavTeams(prev => prev.filter(t => t.id !== teamId))
-      } else {
-        await api.post(`/users/${user.id}/favorite-teams`, { teamId })
-        const team = teams.find(t => t.id === teamId)
-        if (team) setFavTeams(prev => [...prev, team])
-      }
-    } catch { /* silent */ }
-    setActionLoading(false)
-  }
-
-  if (loading) return <Spinner label="Загрузка кабинета…" />
+  const { user } = useAuth()
+  const favDrivers = user?.favoriteDrivers || []
+  const favTeams = user?.favoriteTeams || []
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-foreground dark:text-foreground-dark">Кабинет</h1>
-      </div>
+      <h1 className="text-2xl font-bold text-foreground dark:text-foreground-dark">Кабинет</h1>
 
       <Card className="p-6">
         <h2 className="mb-3 text-lg font-bold text-foreground dark:text-foreground-dark">Профиль</h2>
@@ -103,20 +41,25 @@ export default function CabinetPage() {
         <h2 className="mb-3 text-lg font-bold text-foreground dark:text-foreground-dark">
           Избранные пилоты <span className="text-sm font-normal text-muted dark:text-muted-dark">({favDrivers.length})</span>
         </h2>
-        {drivers.length === 0 ? (
-          <p className="text-sm text-muted dark:text-muted-dark">Нет данных о пилотах</p>
+        {favDrivers.length === 0 ? (
+          <p className="text-sm text-muted dark:text-muted-dark">
+            Пока никого нет. Добавляйте пилотов в избранное на их страницах.
+          </p>
         ) : (
-          <div className="flex flex-wrap gap-2">
-            {drivers.map(d => (
-              <Button
-                key={d.id}
-                size="sm"
-                variant={favDriverIds.has(d.id) ? 'primary' : 'outline'}
-                disabled={actionLoading}
-                onClick={() => toggleFavDriver(d.id)}
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {favDrivers.map((driver) => (
+              <Link
+                key={driver.id}
+                to={`/drivers/${driver.id}`}
+                className="flex items-center gap-3 rounded-lg border border-border-soft px-4 py-3 transition-colors hover:bg-background dark:border-border-dark dark:hover:bg-background-dark"
               >
-                {d.firstName} {d.lastName}
-              </Button>
+                <span className="font-mono text-lg font-black italic text-muted dark:text-muted-dark">
+                  {driver.abbreviation}
+                </span>
+                <span className="font-semibold text-foreground dark:text-foreground-dark">
+                  {driver.firstName} {driver.lastName}
+                </span>
+              </Link>
             ))}
           </div>
         )}
@@ -126,21 +69,21 @@ export default function CabinetPage() {
         <h2 className="mb-3 text-lg font-bold text-foreground dark:text-foreground-dark">
           Избранные команды <span className="text-sm font-normal text-muted dark:text-muted-dark">({favTeams.length})</span>
         </h2>
-        {teams.length === 0 ? (
-          <p className="text-sm text-muted dark:text-muted-dark">Нет данных о командах</p>
+        {favTeams.length === 0 ? (
+          <p className="text-sm text-muted dark:text-muted-dark">
+            Пока никого нет. Добавляйте команды в избранное на их страницах.
+          </p>
         ) : (
-          <div className="flex flex-wrap gap-2">
-            {teams.map(t => (
-              <Button
-                key={t.id}
-                size="sm"
-                variant={favTeamIds.has(t.id) ? 'primary' : 'outline'}
-                disabled={actionLoading}
-                onClick={() => toggleFavTeam(t.id)}
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {favTeams.map((team) => (
+              <Link
+                key={team.id}
+                to={`/teams/${team.id}`}
+                className="flex items-center gap-3 rounded-lg border border-border-soft px-4 py-3 transition-colors hover:bg-background dark:border-border-dark dark:hover:bg-background-dark"
               >
-                <span className="mr-1 inline-block h-2 w-2 rounded-full" style={{ backgroundColor: t.color }} />
-                {t.name}
-              </Button>
+                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: team.color || '#0ea5e9' }} aria-hidden />
+                <span className="font-semibold text-foreground dark:text-foreground-dark">{team.name}</span>
+              </Link>
             ))}
           </div>
         )}

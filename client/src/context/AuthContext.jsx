@@ -43,9 +43,7 @@ export function AuthProvider({ children }) {
 
   const register = useCallback(async (username, email, password) => {
     const { data } = await api.post('/auth/register', { username, email, password })
-    setToken(data.data.token)
-    setUser(data.data.user)
-    return data.data.user
+    return data.data
   }, [])
 
   const logout = useCallback(() => {

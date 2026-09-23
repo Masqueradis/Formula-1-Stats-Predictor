@@ -10,7 +10,7 @@ export default function Header({ theme, onToggleTheme }) {
     <header className="sticky top-0 z-10 border-b border-border-soft bg-card/80 backdrop-blur transition-colors dark:border-border-dark dark:bg-card-dark/80">
       <div className="mx-auto flex w-full max-w-[1400px] flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6">
         <div className="flex items-center gap-3">
-          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-red-600 font-black text-white" aria-hidden>
+          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary font-black text-white transition-colors dark:bg-accent" aria-hidden>
             F1
           </span>
           <div>

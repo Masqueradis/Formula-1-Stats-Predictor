@@ -50,7 +50,7 @@ export default function LoginPage() {
             <p className="rounded-md bg-red-500/10 px-3 py-2 text-sm font-medium text-red-500">{error}</p>
           )}
 
-          <Button className="w-full" disabled={loading}>
+          <Button type="submit" className="w-full" disabled={loading}>
             {loading ? 'Вход…' : 'Войти'}
           </Button>
         </form>

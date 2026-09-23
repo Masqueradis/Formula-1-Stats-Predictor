@@ -16,5 +16,8 @@ dist/
 build/
 *.log
 
+# Кэш внешних данных (новости)
+.cache/
+
 # OS
 .DS_Store

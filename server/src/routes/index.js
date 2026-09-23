@@ -7,5 +7,8 @@ router.use('/races', require('./raceRoutes'));
 router.use('/race-results', require('./raceResultRoutes'));
 router.use('/season-teams', require('./seasonTeamRoutes'));
 router.use('/users', require('./userRoutes'));
+router.use('/news', require('./newsRoutes'));
+router.use('/standings', require('./standingsRoutes'));
+router.use('/admin', require('./adminRoutes'));
 
 module.exports = router;

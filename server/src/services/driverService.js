@@ -2,7 +2,7 @@ const { SeasonTeam, Team } = require('../models');
 const driverRepository = require('../repositories/driverRepository');
 const { parseId } = require('./crudService');
 
-const CURRENT_SEASON_DEFAULT = 2025;
+const CURRENT_SEASON_DEFAULT = 2026;
 
 function sanitizeDriver(record) {
   const json = typeof record.toJSON === 'function' ? record.toJSON() : record;
@@ -10,7 +10,7 @@ function sanitizeDriver(record) {
 
   let team = null;
   if (Array.isArray(seasonTeams) && seasonTeams.length) {
-    team = seasonTeams[0].team || null;
+    team = seasonTeams[seasonTeams.length - 1].team || null;
   } else if (seasonTeams && seasonTeams.team) {
     team = seasonTeams.team;
   }

@@ -33,6 +33,11 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.STRING(50),
       allowNull: false,
     },
+    externalId: {
+      type: DataTypes.STRING(100),
+      allowNull: true,
+      unique: true,
+    },
     abbreviation: {
       type: DataTypes.STRING(3),
       allowNull: false,

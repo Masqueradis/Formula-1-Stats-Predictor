@@ -9,4 +9,5 @@ db.sequelize.sync().then(() => {
   app.listen(PORT, () => {
     console.log(`F1 Stats server running on http://localhost:${PORT}`);
   });
+  require('./jobs/f1SyncJob').start();
 });
