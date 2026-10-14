@@ -18,6 +18,7 @@ module.exports = {
 
   async down(queryInterface) {
     await queryInterface.removeIndex('race_results', 'race_results_race_driver_session_unique');
+    await queryInterface.bulkDelete('race_results', { sessionType: 'sprint' });
     await queryInterface.addIndex('race_results', ['raceId', 'driverId'], {
       unique: true,
       name: 'race_results_race_driver_unique',

@@ -1,6 +1,6 @@
 'use strict';
 
-require('dotenv').config({ path: require('path').join(__dirname, '..', '..', '.env') });
+require('../config/env');
 
 const { sequelize } = require('../models');
 const { syncSeason } = require('../services/f1SyncService');

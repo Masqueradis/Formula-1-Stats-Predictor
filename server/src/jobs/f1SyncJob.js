@@ -1,5 +1,7 @@
 'use strict';
 
+require('../config/env');
+
 const cron = require('node-cron');
 const { syncSeason } = require('../services/f1SyncService');
 
