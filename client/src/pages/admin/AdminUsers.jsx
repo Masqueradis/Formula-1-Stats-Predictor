@@ -2,13 +2,17 @@ import { useCallback, useEffect, useState } from 'react'
 import api from '../../api'
 import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
+import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import Spinner from '../../components/ui/Spinner'
+import { useToast } from '../../components/ui/Toast'
 
 export default function AdminUsers() {
+  const toast = useToast()
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [confirm, setConfirm] = useState(null)
+  const [pendingId, setPendingId] = useState(null)
 
   useEffect(() => {
     loadUsers()
@@ -29,20 +33,37 @@ export default function AdminUsers() {
   const deleteUser = async (id) => {
     const previous = users.find(u => u.id === id)
     const index = users.findIndex(u => u.id === id)
+    setPendingId(id)
     setUsers(prev => prev.filter(u => u.id !== id))
     try {
       await api.delete(`/users/${id}`)
-      setNotice('Пользователь удалён')
-      window.setTimeout(() => setNotice(''), 4000)
+      toast.success('Пользователь удалён')
     } catch (err) {
       setUsers(prev => {
         const next = [...prev]
         next.splice(Math.min(index, next.length), 0, previous)
         return next
       })
-      setNotice(err.response?.data?.error || 'Не удалось удалить пользователя')
-      window.setTimeout(() => setNotice(''), 4000)
+      toast.error(err.response?.data?.error || 'Не удалось удалить пользователя')
     }
+    setPendingId(null)
+  }
+
+  const requestDelete = (user) => {
+    setConfirm({
+      title: 'Удалить пользователя?',
+      message: `«${user.username}» (${user.email}) будет удалён без возможности восстановления.`,
+      confirmLabel: 'Удалить',
+      variant: 'danger',
+      action: () => deleteUser(user.id),
+    })
+  }
+
+  const runConfirm = async () => {
+    if (!confirm) return
+    const action = confirm.action
+    setConfirm(null)
+    await action()
   }
 
   if (loading) return <Spinner label="Загрузка пользователей…" />
@@ -58,12 +79,6 @@ export default function AdminUsers() {
 
   return (
     <div>
-      {notice && (
-        <div className="fixed left-1/2 top-20 z-50 -translate-x-1/2 rounded-lg bg-card px-4 py-2 text-sm font-medium shadow-lg ring-1 ring-border-soft dark:bg-card-dark dark:ring-border-dark">
-          {notice}
-        </div>
-      )}
-
       {users.length === 0 ? (
         <Card className="border-dashed p-8 text-center text-muted dark:text-muted-dark">Нет пользователей</Card>
       ) : (
@@ -81,11 +96,28 @@ export default function AdminUsers() {
                 </div>
                 <p className="mt-0.5 truncate text-sm text-muted dark:text-muted-dark">{u.email}</p>
               </div>
-              <Button size="xs" variant="danger" onClick={() => deleteUser(u.id)}>Удалить</Button>
+              <Button
+                size="sm"
+                variant="danger"
+                disabled={pendingId === u.id}
+                onClick={() => requestDelete(u)}
+              >
+                Удалить
+              </Button>
             </Card>
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        open={Boolean(confirm)}
+        title={confirm?.title}
+        message={confirm?.message}
+        confirmLabel={confirm?.confirmLabel}
+        variant={confirm?.variant}
+        onConfirm={runConfirm}
+        onCancel={() => setConfirm(null)}
+      />
     </div>
   )
 }
