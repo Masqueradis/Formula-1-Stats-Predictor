@@ -3,6 +3,8 @@ import Card from '../../components/ui/Card'
 
 const TABS = [
   { to: '/admin/drivers', label: 'Пилоты' },
+  { to: '/admin/teams', label: 'Команды' },
+  { to: '/admin/results', label: 'Результаты' },
   { to: '/admin/users', label: 'Пользователи' },
   { to: '/admin/sync', label: 'Данные' },
 ]
@@ -13,7 +15,7 @@ export default function AdminLayout() {
       <h1 className="text-2xl font-bold text-foreground dark:text-foreground-dark">Админ-панель</h1>
 
       <Card className="px-4 py-2">
-        <nav className="flex gap-1">
+        <nav className="flex flex-wrap gap-1">
           {TABS.map(tab => (
             <NavLink
               key={tab.to}

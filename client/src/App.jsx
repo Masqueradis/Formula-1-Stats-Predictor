@@ -15,6 +15,8 @@ import VerifyPage from './pages/VerifyPage'
 import CabinetPage from './pages/CabinetPage'
 import AdminLayout from './pages/admin/AdminLayout'
 import AdminDrivers from './pages/admin/AdminDrivers'
+import AdminTeams from './pages/admin/AdminTeams'
+import AdminResults from './pages/admin/AdminResults'
 import AdminUsers from './pages/admin/AdminUsers'
 import AdminSync from './pages/admin/AdminSync'
 
@@ -61,6 +63,8 @@ const router = createBrowserRouter([
             children: [
               { index: true, element: <AdminDrivers /> },
               { path: 'drivers', element: <AdminDrivers /> },
+              { path: 'teams', element: <AdminTeams /> },
+              { path: 'results', element: <AdminResults /> },
               { path: 'users', element: <AdminUsers /> },
               { path: 'sync', element: <AdminSync /> },
             ],
