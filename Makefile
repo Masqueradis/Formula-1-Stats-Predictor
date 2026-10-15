@@ -2,7 +2,7 @@ COMPOSE = docker compose -f docker/docker-compose.yml
 DGREEN := \033[32m
 RESET := \033[0m
 
-.PHONY: help up down psql mailhog migrate seed reset sync server client dev
+.PHONY: help up down stop psql mailhog migrate seed reset sync server client dev
 
 help: ## Показать все команды
 	@echo "$(DGREEN)Доступные команды:$(RESET)"
@@ -14,6 +14,11 @@ up: ## Поднять инфраструктуру (БД + Mailhog) + мигра
 
 down: ## Остановить инфраструктуру
 	$(COMPOSE) down
+
+stop: ## Остановить сервер и клиент (nodemon, vite)
+	@pkill -f '[n]odemon' >/dev/null 2>&1 || true
+	@pkill -f '[v]ite' >/dev/null 2>&1 || true
+	@echo "Stopped: nodemon/vite"
 
 psql: ## Открыть psql в контейнере БД
 	$(COMPOSE) exec postgres psql -U $${POSTGRES_USER:-f1user} -d $${POSTGRES_DB:-f1stats}
@@ -42,7 +47,7 @@ client: ## Запустить фронтенд
 	cd client && npm run dev
 
 dev: ## Запустить сервер и клиент (клиент в фореграунде)
-	@(cd server && npm run dev > /tmp/f1-server.log 2>&1 &); \
+	@(trap 'pkill -f "[n]odemon" >/dev/null 2>&1; pkill -f "[v]ite" >/dev/null 2>&1; echo "Stopped"; exit 0' INT TERM EXIT; cd server && npm run dev > /tmp/f1-server.log 2>&1 & echo "Server log: /tmp/f1-server.log"); \
 	echo "Server log: /tmp/f1-server.log"; \
 	echo "Client: http://localhost:5173  Mailhog: http://localhost:8025"; \
 	cd client && npm run dev
