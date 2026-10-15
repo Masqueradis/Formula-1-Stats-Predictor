@@ -1,6 +1,8 @@
 'use strict';
 
 const { syncSeason } = require('../services/f1SyncService');
+const driverService = require('../services/driverService');
+const teamService = require('../services/teamService');
 const apiResponse = require('../utils/apiResponse');
 
 async function syncF1(req, res) {
@@ -13,4 +15,23 @@ async function syncF1(req, res) {
   }
 }
 
-module.exports = { syncF1 };
+async function getDrivers(req, res) {
+  try {
+    const { search, teamId } = req.query;
+    const data = await driverService.getAll({ search, teamId, includeInactive: true });
+    return apiResponse.success(res, data);
+  } catch (err) {
+    return apiResponse.error(res, err.message, 500);
+  }
+}
+
+async function getTeams(req, res) {
+  try {
+    const data = await teamService.getAll({ includeInactive: true });
+    return apiResponse.success(res, data);
+  } catch (err) {
+    return apiResponse.error(res, err.message, 500);
+  }
+}
+
+module.exports = { syncF1, getDrivers, getTeams };

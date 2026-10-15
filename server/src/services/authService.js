@@ -102,9 +102,14 @@ async function getMe(userId) {
   if (!user) {
     return { error: 'User not found', status: 404 };
   }
+  const isActiveRecord = (record) => {
+    const json = typeof record.toJSON === 'function' ? record.toJSON() : record;
+    return json.isActive !== false;
+  };
+
   return publicUser(user, {
-    favoriteDrivers: user.favoriteDrivers,
-    favoriteTeams: user.favoriteTeams,
+    favoriteDrivers: (user.favoriteDrivers || []).filter(isActiveRecord),
+    favoriteTeams: (user.favoriteTeams || []).filter(isActiveRecord),
   });
 }
 

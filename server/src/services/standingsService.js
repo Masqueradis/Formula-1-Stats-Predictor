@@ -18,8 +18,8 @@ async function getDriversStandings(season) {
   const seasonTeams = await SeasonTeam.findAll({
     where: { season },
     include: [
-      { association: 'team', attributes: ['id', 'name', 'color'] },
-      { association: 'driver', attributes: ['id', 'firstName', 'lastName', 'abbreviation'] },
+      { association: 'team', attributes: ['id', 'name', 'color', 'isActive'] },
+      { association: 'driver', attributes: ['id', 'firstName', 'lastName', 'abbreviation', 'isActive'] },
     ],
     order: [['id', 'ASC']],
   });
@@ -28,9 +28,9 @@ async function getDriversStandings(season) {
   const teamByDriver = new Map();
 
   for (const st of seasonTeams) {
-    if (st.team) teamByDriver.set(st.driverId, st.team);
+    if (st.team && st.team.isActive !== false) teamByDriver.set(st.driverId, st.team);
     const driver = st.driver;
-    if (!driver || byDriver.has(driver.id)) continue;
+    if (!driver || driver.isActive === false || byDriver.has(driver.id)) continue;
     byDriver.set(driver.id, {
       id: driver.id,
       firstName: driver.firstName,
@@ -52,7 +52,7 @@ async function getDriversStandings(season) {
 
   for (const row of rows) {
     const driver = row.driver;
-    if (!driver) continue;
+    if (!driver || driver.isActive === false) continue;
     const entry = byDriver.get(driver.id) || {
       id: driver.id,
       firstName: driver.firstName,
@@ -84,12 +84,12 @@ async function getDriversStandings(season) {
 async function getConstructorsStandings(season) {
   const seasonTeams = await SeasonTeam.findAll({
     where: { season },
-    include: [{ association: 'team', attributes: ['id', 'name', 'color'] }],
+    include: [{ association: 'team', attributes: ['id', 'name', 'color', 'isActive'] }],
   });
 
   const byTeam = new Map();
   for (const st of seasonTeams) {
-    if (!st.team || byTeam.has(st.team.id)) continue;
+    if (!st.team || st.team.isActive === false || byTeam.has(st.team.id)) continue;
     byTeam.set(st.team.id, {
       id: st.team.id,
       name: st.team.name,
@@ -109,8 +109,8 @@ async function getConstructorsStandings(season) {
     if (!row.teamId) continue;
     let entry = byTeam.get(row.teamId);
     if (!entry) {
-      const team = await Team.findByPk(row.teamId, { attributes: ['id', 'name', 'color'] });
-      if (!team) continue;
+      const team = await Team.findByPk(row.teamId, { attributes: ['id', 'name', 'color', 'isActive'] });
+      if (!team || team.isActive === false) continue;
       entry = { id: team.id, name: team.name, color: team.color, wins: 0, podiums: 0, points: 0 };
       byTeam.set(team.id, entry);
     }

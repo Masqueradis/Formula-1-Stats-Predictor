@@ -25,6 +25,9 @@ async function create(req, res) {
     const data = await teamService.create(req.body);
     return apiResponse.created(res, data);
   } catch (err) {
+    if (err.name === 'SequelizeUniqueConstraintError') {
+      return apiResponse.error(res, 'Team name already in use', 409, err.errors?.map((e) => e.message));
+    }
     return apiResponse.error(res, err.message, 400, err.errors?.map((e) => e.message));
   }
 }
@@ -35,6 +38,9 @@ async function update(req, res) {
     if (result.error) return apiResponse.error(res, result.error, result.status || 400);
     return apiResponse.success(res, result);
   } catch (err) {
+    if (err.name === 'SequelizeUniqueConstraintError') {
+      return apiResponse.error(res, 'Team name already in use', 409, err.errors?.map((e) => e.message));
+    }
     return apiResponse.error(res, err.message, 400, err.errors?.map((e) => e.message));
   }
 }

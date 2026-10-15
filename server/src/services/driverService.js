@@ -1,4 +1,4 @@
-const { SeasonTeam, Team } = require('../models');
+const { SeasonTeam, Team, Driver, RaceResult, sequelize } = require('../models');
 const driverRepository = require('../repositories/driverRepository');
 const { parseId } = require('./crudService');
 
@@ -58,8 +58,8 @@ async function syncDriverTeam(driverId, teamId) {
   }
 }
 
-async function getAll({ search, teamId } = {}) {
-  const records = await driverRepository.findAllWithOptions({ search, teamId });
+async function getAll({ search, teamId, includeInactive } = {}) {
+  const records = await driverRepository.findAllWithOptions({ search, teamId, includeInactive });
   return clean(records);
 }
 
@@ -85,7 +85,7 @@ async function create(data) {
 
   await syncDriverTeam(record.id, data.teamId);
 
-  const full = await driverRepository.findByIdWithDetails(record.id);
+  const full = await driverRepository.findByIdWithDetails(record.id, { includeInactive: true });
   return sanitizeDriver(full);
 }
 
@@ -102,12 +102,13 @@ async function update(rawId, data) {
     dateOfBirth: data.dateOfBirth,
     imageUrl: data.imageUrl,
     podiums: data.podiums,
+    isActive: data.isActive,
   });
   if (!updated) return { error: 'driver not found', status: 404 };
 
   await syncDriverTeam(id, data.teamId);
 
-  const full = await driverRepository.findByIdWithDetails(id);
+  const full = await driverRepository.findByIdWithDetails(id, { includeInactive: true });
   return sanitizeDriver(full);
 }
 
@@ -119,8 +120,25 @@ module.exports = {
   remove: async (rawId) => {
     const id = parseId(rawId);
     if (id === null) return { error: 'Invalid id' };
-    const deleted = await driverRepository.remove(id);
-    if (!deleted) return { error: 'driver not found', status: 404 };
+
+    const driver = await Driver.findByPk(id);
+    if (!driver) return { error: 'driver not found', status: 404 };
+
+    const results = await RaceResult.count({ where: { driverId: id } });
+    if (results > 0) {
+      return {
+        error:
+          'Невозможно удалить пилота: у него есть результаты гран-при. ' +
+          'Сначала удалите результаты во вкладке «Результаты» или архивируйте пилота.',
+        status: 409,
+      };
+    }
+
+    await sequelize.transaction(async (t) => {
+      await SeasonTeam.destroy({ where: { driverId: id }, transaction: t });
+      await Driver.destroy({ where: { id }, transaction: t });
+    });
+
     return true;
   },
 };

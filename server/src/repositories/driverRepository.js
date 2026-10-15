@@ -8,8 +8,12 @@ const DRIVER_INCLUDES = [
   { model: SeasonTeam, as: 'seasonTeams', include: [{ association: 'team' }] },
 ];
 
-async function findAllWithOptions({ search, teamId, include }) {
+async function findAllWithOptions({ search, teamId, include, includeInactive } = {}) {
   const where = {};
+
+  if (!includeInactive) {
+    where.isActive = true;
+  }
 
   if (search) {
     where[Op.or] = [
@@ -41,8 +45,11 @@ async function findAllWithOptions({ search, teamId, include }) {
   return Driver.findAll({ where, include: includes, order });
 }
 
-async function findByIdWithDetails(id) {
-  return Driver.findByPk(id, {
+async function findByIdWithDetails(id, { includeInactive = false } = {}) {
+  const where = { id };
+  if (!includeInactive) where.isActive = true;
+  return Driver.findOne({
+    where,
     include: DRIVER_INCLUDES,
     order: [[{ model: SeasonTeam, as: 'seasonTeams' }, 'id', 'ASC']],
   });

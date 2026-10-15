@@ -20,12 +20,15 @@ async function currentSeason() {
   return max || 2026;
 }
 
-async function findAllWithDetails(season) {
-  return Team.findAll({ include: buildTeamIncludes(season) });
+async function findAllWithDetails(season, { includeInactive } = {}) {
+  const where = includeInactive ? {} : { isActive: true };
+  return Team.findAll({ where, include: buildTeamIncludes(season) });
 }
 
-async function findByIdWithDetails(id, season) {
-  return Team.findByPk(id, { include: buildTeamIncludes(season) });
+async function findByIdWithDetails(id, season, { includeInactive = false } = {}) {
+  const where = { id };
+  if (!includeInactive) where.isActive = true;
+  return Team.findOne({ where, include: buildTeamIncludes(season) });
 }
 
 module.exports = {

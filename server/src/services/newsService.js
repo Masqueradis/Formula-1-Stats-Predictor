@@ -246,12 +246,16 @@ async function resolveKeywordGroups({ driverId, teamId }) {
   const groups = [];
   if (driverId) {
     const driver = await Driver.findByPk(Number(driverId)).catch(() => null);
-    const group = keywordsFromDriver(driver).filter((k) => String(k).trim().length >= MIN_KEYWORD_LENGTH);
+    const group = keywordsFromDriver(driver && driver.isActive !== false ? driver : null).filter(
+      (k) => String(k).trim().length >= MIN_KEYWORD_LENGTH,
+    );
     if (group.length) groups.push(group);
   }
   if (teamId) {
     const team = await Team.findByPk(Number(teamId)).catch(() => null);
-    const group = keywordsFromTeam(team).filter((k) => String(k).trim().length >= MIN_KEYWORD_LENGTH);
+    const group = keywordsFromTeam(team && team.isActive !== false ? team : null).filter(
+      (k) => String(k).trim().length >= MIN_KEYWORD_LENGTH,
+    );
     if (group.length) groups.push(group);
   }
   return groups;

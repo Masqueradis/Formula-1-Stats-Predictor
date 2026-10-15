@@ -9,7 +9,9 @@ const baseService = buildCrudService({
 function sanitizeRace(race) {
   const json = typeof race.toJSON === 'function' ? race.toJSON() : race;
   const { results, ...rest } = json;
-  const raceOnly = (results || []).filter((r) => (r.sessionType || 'race') === 'race');
+  const raceOnly = (results || []).filter(
+    (r) => (r.sessionType || 'race') === 'race' && !(r.driver && r.driver.isActive === false),
+  );
   const sorted = [...raceOnly].sort((a, b) => (a.position || 0) - (b.position || 0));
   const winner = sorted.find((r) => r.position === 1) || null;
   const topThree = sorted.slice(0, 3).map((r) => {
