@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import api from '../../api'
 import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
+import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import Input from '../../components/ui/Input'
 import Select from '../../components/ui/Select'
 import Spinner from '../../components/ui/Spinner'
+import { useToast } from '../../components/ui/Toast'
 
 const EMPTY_FORM = {
   firstName: '',
@@ -17,12 +19,21 @@ const EMPTY_FORM = {
   teamId: '',
 }
 
+const FILTERS = [
+  { value: 'active', label: 'Активные' },
+  { value: 'archived', label: 'Архивные' },
+  { value: 'all', label: 'Все' },
+]
+
 export default function AdminDrivers() {
+  const toast = useToast()
   const [drivers, setDrivers] = useState([])
   const [teams, setTeams] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [filter, setFilter] = useState('active')
+  const [confirm, setConfirm] = useState(null)
+  const [pendingId, setPendingId] = useState(null)
 
   useEffect(() => {
     loadAll()
@@ -32,7 +43,7 @@ export default function AdminDrivers() {
     setLoading(true)
     setError('')
     try {
-      const [dRes, tRes] = await Promise.all([api.get('/drivers'), api.get('/teams')])
+      const [dRes, tRes] = await Promise.all([api.get('/admin/drivers'), api.get('/teams')])
       setDrivers(dRes.data.data || [])
       setTeams(tRes.data.data || [])
     } catch {
@@ -41,14 +52,17 @@ export default function AdminDrivers() {
     setLoading(false)
   }, [])
 
-  const showNotice = (msg) => {
-    setNotice(msg)
-    window.setTimeout(() => setNotice(''), 4000)
-  }
+  const visibleDrivers = useMemo(() => {
+    if (filter === 'active') return drivers.filter(d => d.isActive !== false)
+    if (filter === 'archived') return drivers.filter(d => d.isActive === false)
+    return drivers
+  }, [drivers, filter])
 
-  const handleError = (err, fallback) => {
-    showNotice(err.response?.data?.error || fallback)
-  }
+  const counts = useMemo(() => ({
+    all: drivers.length,
+    active: drivers.filter(d => d.isActive !== false).length,
+    archived: drivers.filter(d => d.isActive === false).length,
+  }), [drivers])
 
   const addDriver = async (form) => {
     const tempId = `temp-${Date.now()}`
@@ -61,6 +75,7 @@ export default function AdminDrivers() {
       nationality: form.nationality,
       podiums: Number(form.podiums) || 0,
       imageUrl: form.imageUrl || null,
+      isActive: true,
       team: teams.find(t => Number(t.id) === Number(form.teamId)) || null,
     }
 
@@ -68,10 +83,10 @@ export default function AdminDrivers() {
     try {
       const { data } = await api.post('/drivers', { ...form, number: Number(form.number) })
       setDrivers(prev => prev.map(d => (d.id === tempId ? data.data : d)))
-      showNotice('Пилот добавлен')
+      toast.success('Пилот добавлен')
     } catch (err) {
       setDrivers(prev => prev.filter(d => d.id !== tempId))
-      handleError(err, 'Не удалось добавить пилота')
+      toast.error(err.response?.data?.error || 'Не удалось добавить пилота')
     }
   }
 
@@ -92,28 +107,72 @@ export default function AdminDrivers() {
     try {
       const { data } = await api.put(`/drivers/${id}`, { ...form, number: Number(form.number) })
       setDrivers(prev => prev.map(d => (d.id === id ? data.data : d)))
-      showNotice('Пилот обновлён')
+      toast.success('Пилот обновлён')
     } catch (err) {
       setDrivers(prev => prev.map(d => (d.id === id ? previous : d)))
-      handleError(err, 'Не удалось обновить пилота')
+      toast.error(err.response?.data?.error || 'Не удалось обновить пилота')
     }
+  }
+
+  const setActive = async (driver, isActive) => {
+    const previous = drivers
+    setPendingId(driver.id)
+    setDrivers(prev => prev.map(d => (d.id === driver.id ? { ...d, isActive } : d)))
+    try {
+      const { data } = await api.put(`/drivers/${driver.id}`, { isActive })
+      setDrivers(prev => prev.map(d => (d.id === driver.id ? data.data : d)))
+      toast.success(isActive ? 'Пилот возвращён из архива' : 'Пилот архивирован')
+    } catch (err) {
+      setDrivers(previous)
+      toast.error(err.response?.data?.error || 'Не удалось изменить статус пилота')
+    }
+    setPendingId(null)
   }
 
   const deleteDriver = async (id) => {
     const previous = drivers.find(d => d.id === id)
     const index = drivers.findIndex(d => d.id === id)
+    setPendingId(id)
     setDrivers(prev => prev.filter(d => d.id !== id))
     try {
       await api.delete(`/drivers/${id}`)
-      showNotice('Пилот удалён')
+      toast.success('Пилот удалён')
     } catch (err) {
       setDrivers(prev => {
         const next = [...prev]
         next.splice(Math.min(index, next.length), 0, previous)
         return next
       })
-      handleError(err, 'Не удалось удалить пилота')
+      toast.error(err.response?.data?.error || 'Не удалось удалить пилота')
     }
+    setPendingId(null)
+  }
+
+  const requestDelete = (driver) => {
+    setConfirm({
+      title: 'Удалить пилота?',
+      message: `«${driver.firstName} ${driver.lastName}» будет удалён. Если у пилота есть результаты гран-при, удаление заблокируется — тогда используйте «Архивировать».`,
+      confirmLabel: 'Удалить',
+      variant: 'danger',
+      action: () => deleteDriver(driver.id),
+    })
+  }
+
+  const requestArchive = (driver) => {
+    setConfirm({
+      title: 'Архивировать пилота?',
+      message: `«${driver.firstName} ${driver.lastName}» скроется из публичных разделов, результаты сохранятся. Вернуть можно кнопкой «Вернуть».`,
+      confirmLabel: 'Архивировать',
+      variant: 'outline',
+      action: () => setActive(driver, false),
+    })
+  }
+
+  const runConfirm = async () => {
+    if (!confirm) return
+    const action = confirm.action
+    setConfirm(null)
+    await action()
   }
 
   if (loading) return <Spinner label="Загрузка пилотов…" />
@@ -129,27 +188,39 @@ export default function AdminDrivers() {
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
-      {notice && (
-        <div className="fixed left-1/2 top-20 z-50 -translate-x-1/2 rounded-lg bg-card px-4 py-2 text-sm font-medium shadow-lg ring-1 ring-border-soft dark:bg-card-dark dark:ring-border-dark">
-          {notice}
-        </div>
-      )}
-
       <section>
-        <h2 className="mb-4 text-lg font-bold text-foreground dark:text-foreground-dark">
-          Пилоты <span className="font-mono text-sm text-muted dark:text-muted-dark">({drivers.length})</span>
-        </h2>
-        {drivers.length === 0 ? (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-lg font-bold text-foreground dark:text-foreground-dark">
+            Пилоты <span className="font-mono text-sm text-muted dark:text-muted-dark">({visibleDrivers.length})</span>
+          </h2>
+          <div className="flex flex-wrap gap-1">
+            {FILTERS.map(f => (
+              <Button
+                key={f.value}
+                size="sm"
+                variant={filter === f.value ? 'primary' : 'outline'}
+                onClick={() => setFilter(f.value)}
+              >
+                {f.label} <span className="font-mono text-xs opacity-70">{counts[f.value]}</span>
+              </Button>
+            ))}
+          </div>
+        </div>
+
+        {visibleDrivers.length === 0 ? (
           <Card className="border-dashed p-8 text-center text-muted dark:text-muted-dark">Нет пилотов</Card>
         ) : (
           <div className="space-y-3">
-            {drivers.map(d => (
+            {visibleDrivers.map(d => (
               <DriverRow
                 key={d.id}
                 driver={d}
                 teams={teams}
+                pending={pendingId === d.id}
                 onUpdate={updateDriver}
-                onDelete={deleteDriver}
+                onDelete={requestDelete}
+                onArchive={requestArchive}
+                onRestore={(driver) => setActive(driver, true)}
               />
             ))}
           </div>
@@ -159,11 +230,21 @@ export default function AdminDrivers() {
       <aside>
         <AddDriverForm teams={teams} onAdd={addDriver} />
       </aside>
+
+      <ConfirmDialog
+        open={Boolean(confirm)}
+        title={confirm?.title}
+        message={confirm?.message}
+        confirmLabel={confirm?.confirmLabel}
+        variant={confirm?.variant}
+        onConfirm={runConfirm}
+        onCancel={() => setConfirm(null)}
+      />
     </div>
   )
 }
 
-function DriverRow({ driver, teams, onUpdate, onDelete }) {
+function DriverRow({ driver, teams, pending, onUpdate, onDelete, onArchive, onRestore }) {
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState({
     firstName: driver.firstName,
@@ -176,6 +257,7 @@ function DriverRow({ driver, teams, onUpdate, onDelete }) {
     teamId: driver.team?.id || '',
   })
 
+  const archived = driver.isActive === false
   const teamColor = driver.team?.color || '#0ea5e9'
 
   const handleChange = (e) => {
@@ -221,7 +303,7 @@ function DriverRow({ driver, teams, onUpdate, onDelete }) {
   }
 
   return (
-    <Card className="flex items-center justify-between gap-4 p-4">
+    <Card className={`flex items-center justify-between gap-4 p-4 ${archived ? 'opacity-80' : ''}`}>
       <div className="min-w-0">
         <div className="flex items-center gap-2">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md font-mono text-xs font-black italic text-white" style={{ backgroundColor: teamColor }}>
@@ -230,15 +312,25 @@ function DriverRow({ driver, teams, onUpdate, onDelete }) {
           <h3 className="truncate font-bold text-foreground dark:text-foreground-dark">
             {driver.firstName} {driver.lastName}
           </h3>
+          {archived && (
+            <span className="shrink-0 rounded-full bg-amber-500/20 px-2 py-0.5 text-xs font-bold text-amber-600 dark:text-amber-400">
+              Архив
+            </span>
+          )}
         </div>
         <p className="mt-1 truncate text-sm text-muted dark:text-muted-dark">
           {driver.nationality} · №{driver.number} · подиумы: {driver.podiums || 0}
           {driver.team ? ` · ${driver.team.name}` : ''}
         </p>
       </div>
-      <div className="flex shrink-0 gap-2">
-        <Button size="xs" variant="outline" onClick={() => setEditing(true)}>Из</Button>
-        <Button size="xs" variant="danger" onClick={() => onDelete(driver.id)}>Уд</Button>
+      <div className="flex shrink-0 flex-wrap justify-end gap-2">
+        <Button size="sm" variant="outline" disabled={pending} onClick={() => setEditing(true)}>Изменить</Button>
+        {archived ? (
+          <Button size="sm" variant="primary" disabled={pending} onClick={() => onRestore(driver)}>Вернуть</Button>
+        ) : (
+          <Button size="sm" variant="ghost" disabled={pending} onClick={() => onArchive(driver)}>Архивировать</Button>
+        )}
+        <Button size="sm" variant="danger" disabled={pending} onClick={() => onDelete(driver)}>Удалить</Button>
       </div>
     </Card>
   )
