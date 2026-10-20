@@ -41,6 +41,8 @@ function normalizeNumber(value) {
 async function syncSeason(rawSeason, options = {}) {
   const season = Number(rawSeason) || Number(options.season) || new Date().getFullYear();
   const summary = { season, teams: 0, drivers: 0, races: 0, results: 0, seasonTeams: 0, errors: [] };
+  // Гонки, у которых статус реально изменился (scheduled ↔ finished) — для live-push
+  const statusChanges = [];
 
   const [schedulePayload, constructorsPayload, driversPayload, standingsPayload, sprintPayload] =
     await Promise.all([
@@ -236,7 +238,12 @@ async function syncSeason(rawSeason, options = {}) {
     }
 
     const status = rows.some((r) => r.sessionType === 'race') ? 'finished' : raceRecord.status;
-    if (raceRecord.status !== status) await raceRecord.update({ status });
+    if (raceRecord.status !== status) {
+      const previous = raceRecord.status;
+      await raceRecord.update({ status });
+      // Live-push о смене статуса гонки (лаба 7): только при реальном изменении
+      statusChanges.push({ raceId: raceRecord.id, externalId: raceRecord.externalId, name: raceRecord.name, previous, status });
+    }
   }
 
   for (const standing of standings) {
@@ -261,6 +268,7 @@ async function syncSeason(rawSeason, options = {}) {
     await Driver.update({ podiums }, { where: { id: driverId } });
   }
 
+  summary.statusChanges = statusChanges;
   return summary;
 }
 

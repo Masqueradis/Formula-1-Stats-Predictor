@@ -2,6 +2,7 @@ const { Op } = require('sequelize');
 const { RaceResult, Driver, SeasonTeam } = require('../models');
 const raceResultRepository = require('../repositories/raceResultRepository');
 const { parseId } = require('./crudService');
+const realtime = require('../realtime/io');
 
 const SESSION_TYPES = ['race', 'sprint'];
 
@@ -98,6 +99,7 @@ async function create(data) {
 
   const record = await RaceResult.create({ raceId, driverId, teamId, ...fields });
   await recomputePodiums(driverId);
+  realtime.emitStandings({ action: 'result:created', raceId });
   return raceResultRepository.findByIdWithDetails(record.id);
 }
 
@@ -113,6 +115,7 @@ async function update(rawId, data) {
     await existing.update(fields);
   }
   await recomputePodiums(existing.driverId);
+  realtime.emitStandings({ action: 'result:updated', raceId: existing.raceId });
   return raceResultRepository.findByIdWithDetails(id);
 }
 
@@ -124,8 +127,10 @@ async function remove(rawId) {
   if (!existing) return { error: 'race result not found', status: 404 };
 
   const driverId = existing.driverId;
+  const raceId = existing.raceId;
   await existing.destroy();
   await recomputePodiums(driverId);
+  realtime.emitStandings({ action: 'result:removed', raceId });
   return true;
 }
 

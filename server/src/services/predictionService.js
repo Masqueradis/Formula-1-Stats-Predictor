@@ -6,6 +6,7 @@ const raceRepository = require('../repositories/raceRepository');
 const seasonTeamRepository = require('../repositories/seasonTeamRepository');
 const userRepository = require('../repositories/userRepository');
 const predictionRepository = require('../repositories/predictionRepository');
+const realtime = require('../realtime/io');
 
 function httpError(status, message) {
   const err = new Error(message);
@@ -305,7 +306,10 @@ async function createVote(rawRaceId, user, body) {
   });
   // Атомарное условие не совпало → голос этого пользователя уже есть
   if (!updated) throw httpError(409, 'You have already voted in this race');
-  return presentDoc(updated);
+  const presented = presentDoc(updated);
+  // Live-обновление народного прогноза для зрителей комнаты гонки (лаба 7)
+  realtime.emitVote(doc.raceId, { action: 'created', userId: user.id, username, votesCount: presented.votes.length });
+  return presented;
 }
 
 async function updateVote(rawRaceId, targetUserId, user, body) {
@@ -322,7 +326,14 @@ async function updateVote(rawRaceId, targetUserId, user, body) {
 
   const updated = await predictionRepository.updateVote(doc.raceId, targetId, { kind, picks });
   if (!updated) throw httpError(404, 'Vote not found');
-  return presentDoc(updated);
+  const presented = presentDoc(updated);
+  realtime.emitVote(doc.raceId, {
+    action: 'updated',
+    userId: targetId,
+    username: await displayUser(targetId),
+    votesCount: presented.votes.length,
+  });
+  return presented;
 }
 
 async function removeVote(rawRaceId, targetUserId, user) {
@@ -337,7 +348,14 @@ async function removeVote(rawRaceId, targetUserId, user) {
 
   const updated = await predictionRepository.removeVote(doc.raceId, targetId);
   if (!updated) throw httpError(404, 'Vote not found');
-  return presentDoc(updated);
+  const presented = presentDoc(updated);
+  realtime.emitVote(doc.raceId, {
+    action: 'removed',
+    userId: targetId,
+    username: await displayUser(targetId),
+    votesCount: presented.votes.length,
+  });
+  return presented;
 }
 
 // ---------- Комментарии ----------
@@ -354,7 +372,16 @@ async function createComment(rawRaceId, user, body) {
     username,
     text,
   });
-  return presentDoc(updated);
+  const presented = presentDoc(updated);
+  const last = presented.comments[presented.comments.length - 1];
+  realtime.emitComment(doc.raceId, {
+    action: 'created',
+    commentId: last ? String(last._id) : null,
+    username,
+    userId: user.id,
+    commentsCount: presented.comments.length,
+  });
+  return presented;
 }
 
 /** Поиск комментария (subdocument) по _id; невалидный ObjectId → 404 */
@@ -373,7 +400,14 @@ async function removeComment(rawRaceId, commentId, user) {
   }
 
   const updated = await predictionRepository.removeComment(doc.raceId, commentId);
-  return presentDoc(updated);
+  const presented = presentDoc(updated);
+  realtime.emitComment(doc.raceId, {
+    action: 'removed',
+    commentId: String(commentId),
+    userId: user.id,
+    commentsCount: presented.comments.length,
+  });
+  return presented;
 }
 
 /** Лайк: toggle через $addToSet / $pull (демонстрация обновления внутри массива) */
@@ -386,7 +420,17 @@ async function toggleLike(rawRaceId, commentId, user) {
     ? await predictionRepository.removeLike(doc.raceId, commentId, user.id)
     : await predictionRepository.addLike(doc.raceId, commentId, user.id);
   if (!updated) throw httpError(404, 'Comment not found');
-  return presentDoc(updated);
+  const presented = presentDoc(updated);
+  const fresh = presented.comments.find((c) => String(c._id) === String(commentId));
+  realtime.emitComment(doc.raceId, {
+    action: 'liked',
+    commentId: String(commentId),
+    liked: !liked,
+    userId: user.id,
+    username: await displayUser(user.id),
+    likesCount: fresh ? fresh.likes.length : null,
+  });
+  return presented;
 }
 
 // ---------- Удаление документа ----------
