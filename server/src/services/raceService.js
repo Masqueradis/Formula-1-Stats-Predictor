@@ -1,5 +1,6 @@
 const { buildCrudService, parseId } = require('./crudService');
 const raceRepository = require('../repositories/raceRepository');
+const predictionService = require('./predictionService');
 
 const baseService = buildCrudService({
   repository: raceRepository,
@@ -37,8 +38,24 @@ async function getById(rawId) {
   return sanitizeRace(race);
 }
 
+/**
+ * Удаление гонки с каскадом в MongoDB (решение В3 эпика-06):
+ * меж-БД-каскада не существует, поэтому после успешного удаления строки
+ * в PostgreSQL удаляем и документ гонки в MongoDB (best-effort).
+ */
+async function remove(rawId) {
+  const id = parseId(rawId);
+  const race = id !== null ? await raceRepository.findById(id) : null;
+  const result = await baseService.remove(rawId);
+  if (result === true && race) {
+    await predictionService.cascadeRemoveByRace(race);
+  }
+  return result;
+}
+
 module.exports = {
   ...baseService,
   getAll,
   getById,
+  remove,
 };

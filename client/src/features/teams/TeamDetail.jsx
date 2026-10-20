@@ -5,12 +5,14 @@ import Card from '../../components/ui/Card'
 import Spinner from '../../components/ui/Spinner'
 import Button from '../../components/ui/Button'
 import FavoriteButton from '../../components/FavoriteButton'
+import useDocumentTitle from '../../hooks/useDocumentTitle'
 
 export default function TeamDetail() {
   const { id } = useParams()
   const [team, setTeam] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isError, setIsError] = useState(false)
+  useDocumentTitle(team ? team.name : 'Команда')
 
   const load = useCallback(async () => {
     setIsLoading(true)

@@ -1,3 +1,4 @@
+import useDocumentTitle from '../../hooks/useDocumentTitle'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import api from '../../api'
 import Button from '../../components/ui/Button'
@@ -26,6 +27,7 @@ const FILTERS = [
 ]
 
 export default function AdminDrivers() {
+  useDocumentTitle('Админ — Пилоты')
   const toast = useToast()
   const [drivers, setDrivers] = useState([])
   const [teams, setTeams] = useState([])

@@ -5,6 +5,7 @@ import Card from '../../components/ui/Card'
 import Spinner from '../../components/ui/Spinner'
 import Button from '../../components/ui/Button'
 import FavoriteButton from '../../components/FavoriteButton'
+import useDocumentTitle from '../../hooks/useDocumentTitle'
 
 function formatDate(value) {
   if (!value) return '—'
@@ -18,6 +19,7 @@ export default function DriverDetail() {
   const [driver, setDriver] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isError, setIsError] = useState(false)
+  useDocumentTitle(driver ? `${driver.firstName} ${driver.lastName}` : 'Пилот')
 
   const load = useCallback(async () => {
     setIsLoading(true)

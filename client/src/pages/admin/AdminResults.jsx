@@ -1,3 +1,4 @@
+import useDocumentTitle from '../../hooks/useDocumentTitle'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import api from '../../api'
 import Button from '../../components/ui/Button'
@@ -29,6 +30,7 @@ function sortRaces(races) {
 }
 
 export default function AdminResults() {
+  useDocumentTitle('Админ — Результаты')
   const toast = useToast()
   const [drivers, setDrivers] = useState([])
   const [races, setRaces] = useState([])

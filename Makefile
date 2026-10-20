@@ -2,7 +2,7 @@ COMPOSE = docker compose -f docker/docker-compose.yml
 DGREEN := \033[32m
 RESET := \033[0m
 
-.PHONY: help up down stop psql mailhog migrate seed reset sync server client dev
+.PHONY: help up down stop psql mongo mailhog migrate seed seedmongo reset sync server client dev
 
 help: ## Показать все команды
 	@echo "$(DGREEN)Доступные команды:$(RESET)"
@@ -23,6 +23,9 @@ stop: ## Остановить сервер и клиент (nodemon, vite)
 psql: ## Открыть psql в контейнере БД
 	$(COMPOSE) exec postgres psql -U $${POSTGRES_USER:-f1user} -d $${POSTGRES_DB:-f1stats}
 
+mongo: ## Открыть mongosh в контейнере MongoDB
+	$(COMPOSE) exec mongo mongosh $${MONGO_URI:-mongodb://localhost:27017/f1stats}
+
 mailhog: ## Открыть web-интерфейс Mailhog
 	@xdg-open http://localhost:8025 >/dev/null 2>&1 || open http://localhost:8025 || echo "Открой в браузере: http://localhost:8025"
 
@@ -31,6 +34,9 @@ migrate: ## Применить миграции
 
 seed: ## Засеять данные
 	cd server && npm run db:seed
+
+seedmongo: ## Засеять демо-данные в MongoDB (народный прогноз)
+	cd server && npm run seed:mongo
 
 reset: ## Полный сброс БД (DROP schema + миграции + сиды)
 	$(COMPOSE) exec -T postgres psql -U $${POSTGRES_USER:-f1user} -d $${POSTGRES_DB:-f1stats} -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;'

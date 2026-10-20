@@ -1,3 +1,4 @@
+import useDocumentTitle from '../../hooks/useDocumentTitle'
 import { useState } from 'react'
 import api from '../../api'
 import Button from '../../components/ui/Button'
@@ -13,6 +14,7 @@ const FIELDS = [
 ]
 
 export default function AdminSync() {
+  useDocumentTitle('Админ — Синхронизация')
   const [season, setSeason] = useState(new Date().getFullYear())
   const [loading, setLoading] = useState(false)
   const [summary, setSummary] = useState(null)

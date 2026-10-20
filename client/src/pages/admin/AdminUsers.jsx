@@ -1,3 +1,4 @@
+import useDocumentTitle from '../../hooks/useDocumentTitle'
 import { useCallback, useEffect, useState } from 'react'
 import api from '../../api'
 import Button from '../../components/ui/Button'
@@ -7,6 +8,7 @@ import Spinner from '../../components/ui/Spinner'
 import { useToast } from '../../components/ui/Toast'
 
 export default function AdminUsers() {
+  useDocumentTitle('Админ — Пользователи')
   const toast = useToast()
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)

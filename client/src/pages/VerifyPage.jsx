@@ -1,3 +1,4 @@
+import useDocumentTitle from '../hooks/useDocumentTitle'
 import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import api from '../api'
@@ -6,6 +7,7 @@ import Card from '../components/ui/Card'
 import Spinner from '../components/ui/Spinner'
 
 export default function VerifyPage() {
+  useDocumentTitle('Подтверждение почты')
   const [searchParams] = useSearchParams()
   const token = searchParams.get('token')
 

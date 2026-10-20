@@ -1,3 +1,4 @@
+import useDocumentTitle from '../../hooks/useDocumentTitle'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import api from '../../api'
 import Button from '../../components/ui/Button'
@@ -22,6 +23,7 @@ const FILTERS = [
 ]
 
 export default function AdminTeams() {
+  useDocumentTitle('Админ — Команды')
   const toast = useToast()
   const [teams, setTeams] = useState([])
   const [loading, setLoading] = useState(true)
