@@ -1,7 +1,9 @@
+const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { JWT_SECRET } = require('../middleware/authenticate');
 const userRepository = require('../repositories/userRepository');
+const { sendVerificationEmail, sendWelcomeEmail } = require('./emailService');
 
 function signToken(user) {
   return jwt.sign(
@@ -17,6 +19,7 @@ function publicUser(user, extras = {}) {
     username: user.username,
     email: user.email,
     role: user.role,
+    isVerified: user.isVerified,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
     ...extras,
@@ -37,10 +40,38 @@ async function register({ username, email, password }) {
   }
 
   const passwordHash = await bcrypt.hash(password, 10);
-  const user = await userRepository.create({ username, email, passwordHash });
+  const verificationToken = crypto.randomUUID();
+  const user = await userRepository.create({
+    username,
+    email,
+    passwordHash,
+    verificationToken,
+    isVerified: false,
+  });
 
-  const token = signToken(user);
-  return { data: { token, user: publicUser(user) }, status: 201 };
+  sendVerificationEmail(user.email, user.verificationToken);
+
+  return {
+    data: { message: 'Регистрация успешна. Проверьте почту, чтобы подтвердить email.' },
+    status: 201,
+  };
+}
+
+async function verify(rawToken) {
+  if (!rawToken) {
+    return { error: 'Verification token is required' };
+  }
+
+  const user = await userRepository.findOne({ verificationToken: rawToken });
+  if (!user) {
+    return { error: 'Invalid or expired verification token', status: 400 };
+  }
+
+  await user.update({ verificationToken: null, isVerified: true });
+
+  sendWelcomeEmail(user.email, user.username);
+
+  return publicUser(user);
 }
 
 async function login({ email, password }) {
@@ -51,6 +82,10 @@ async function login({ email, password }) {
   const user = await userRepository.findByEmail(email);
   if (!user) {
     return { error: 'Invalid credentials', status: 401 };
+  }
+
+  if (!user.isVerified) {
+    return { error: 'Email not verified. Check your inbox.', status: 403 };
   }
 
   const valid = await bcrypt.compare(password, user.passwordHash);
@@ -67,10 +102,15 @@ async function getMe(userId) {
   if (!user) {
     return { error: 'User not found', status: 404 };
   }
+  const isActiveRecord = (record) => {
+    const json = typeof record.toJSON === 'function' ? record.toJSON() : record;
+    return json.isActive !== false;
+  };
+
   return publicUser(user, {
-    favoriteDrivers: user.favoriteDrivers,
-    favoriteTeams: user.favoriteTeams,
+    favoriteDrivers: (user.favoriteDrivers || []).filter(isActiveRecord),
+    favoriteTeams: (user.favoriteTeams || []).filter(isActiveRecord),
   });
 }
 
-module.exports = { register, login, getMe, publicUser };
+module.exports = { register, verify, login, getMe, publicUser };

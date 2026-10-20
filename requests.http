@@ -1,0 +1,177 @@
+### ---------- Health check ----------
+GET http://localhost:3000/api/health
+
+### ---------- DRIVERS ----------
+
+### Список всех пилотов → 200
+GET http://localhost:3000/api/drivers
+
+### Один пилот (id d1) → 200
+GET http://localhost:3000/api/drivers/d1
+
+### Несуществующий id → 404
+GET http://localhost:3000/api/drivers/nope
+
+### Кривой id → 404 (нет такой записи)
+GET http://localhost:3000/api/drivers/42
+
+### Создать пилота → 201
+POST http://localhost:3000/api/drivers
+Content-Type: application/json
+
+{
+  "name": "Lando Norris",
+  "number": 4,
+  "team": "McLaren",
+  "nationality": "United Kingdom",
+  "points": 205
+}
+
+### Невалидное тело (нет number) → 400
+POST http://localhost:3000/api/drivers
+Content-Type: application/json
+
+{
+  "name": "Incomplete Driver"
+}
+
+### Неизвестное поле в теле → 400
+POST http://localhost:3000/api/drivers
+Content-Type: application/json
+
+{
+  "name": "Liam Lawson",
+  "number": 30,
+  "team": "Racing Bulls",
+  "nationality": "New Zealander",
+  "points": 12,
+  "hack": true
+}
+
+### Обновить пилота d1 → 200
+PUT http://localhost:3000/api/drivers/d1
+Content-Type: application/json
+
+{
+  "name": "Max Verstappen",
+  "number": 1,
+  "team": "Red Bull Racing",
+  "nationality": "Netherlands",
+  "points": 470
+}
+
+### Обновить несуществующего → 404
+PUT http://localhost:3000/api/drivers/ghost
+Content-Type: application/json
+
+{
+  "name": "Nobody"
+}
+
+### Удалить пилота d2 → 204 (пустой ответ)
+DELETE http://localhost:3000/api/drivers/d2
+
+### После удаления d2 → 404
+GET http://localhost:3000/api/drivers/d2
+
+### ---------- TEAMS ----------
+
+### Список всех команд → 200
+GET http://localhost:3000/api/teams
+
+### Одна команда (id t1) → 200
+GET http://localhost:3000/api/teams/t1
+
+### Создать команду → 201
+POST http://localhost:3000/api/teams
+Content-Type: application/json
+
+{
+  "name": "McLaren",
+  "principal": "Andrea Stella",
+  "nationality": "United Kingdom",
+  "points": 421
+}
+
+### Невалидное тело (нет name) → 400
+POST http://localhost:3000/api/teams
+Content-Type: application/json
+
+{
+  "principal": "No Name Given"
+}
+
+### Обновить команду t1 → 200
+PUT http://localhost:3000/api/teams/t1
+Content-Type: application/json
+
+{
+  "name": "Red Bull Racing",
+  "principal": "Christian Horner",
+  "nationality": "Austria",
+  "points": 800
+}
+
+### Удалить команду t3 → 204
+DELETE http://localhost:3000/api/teams/t3
+
+### После удаления t3 → 404
+GET http://localhost:3000/api/teams/t3
+
+### ---------- RACES ----------
+
+### Список всех гонок → 200
+GET http://localhost:3000/api/races
+
+### Одна гонка (id r1) → 200
+GET http://localhost:3000/api/races/r1
+
+### Создать гонку → 201
+POST http://localhost:3000/api/races
+Content-Type: application/json
+
+{
+  "name": "Monaco Grand Prix",
+  "circuit": "Circuit de Monaco",
+  "date": "2026-05-24",
+  "season": 2026
+}
+
+### Невалидное тело (сезон < 1950) → 400
+POST http://localhost:3000/api/races
+Content-Type: application/json
+
+{
+  "name": "Vintage GP",
+  "circuit": "Old Track",
+  "date": "1920-01-01",
+  "season": 1900
+}
+
+### Обновить гонку r1 → 200
+PUT http://localhost:3000/api/races/r1
+Content-Type: application/json
+
+{
+  "name": "Bahrain Grand Prix",
+  "circuit": "Bahrain International Circuit",
+  "date": "2026-04-05",
+  "season": 2026
+}
+
+### Удалить гонку r2 → 204
+DELETE http://localhost:3000/api/races/r2
+
+### После удаления r2 → 404
+GET http://localhost:3000/api/races/r2
+
+### ---------- Обработка ошибок / маршруты ----------
+
+### Неизвестный маршрут → 404
+GET http://localhost:3000/api/nothing
+
+### Малформированный JSON → 400
+POST http://localhost:3000/api/drivers
+Content-Type: application/json
+
+{bad json

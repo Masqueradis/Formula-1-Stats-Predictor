@@ -1,5 +1,5 @@
-import UnderConstruction from '../components/ui/UnderConstruction'
+import TeamManager from '../features/teams/TeamManager'
 
 export default function TeamsPage() {
-  return <UnderConstruction title="Команды" />
+  return <TeamManager />
 }

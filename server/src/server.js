@@ -1,4 +1,4 @@
-require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
+require('./config/env');
 
 const app = require('./app');
 const db = require('./models');
@@ -9,4 +9,5 @@ db.sequelize.sync().then(() => {
   app.listen(PORT, () => {
     console.log(`F1 Stats server running on http://localhost:${PORT}`);
   });
+  require('./jobs/f1SyncJob').start();
 });

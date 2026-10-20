@@ -14,6 +14,11 @@ module.exports = (sequelize, DataTypes) => {
       primaryKey: true,
       autoIncrement: true,
     },
+    externalId: {
+      type: DataTypes.STRING(100),
+      allowNull: true,
+      unique: true,
+    },
     name: {
       type: DataTypes.STRING(150),
       allowNull: false,
@@ -57,7 +62,7 @@ module.exports = (sequelize, DataTypes) => {
     tableName: 'races',
     timestamps: true,
     indexes: [
-      { unique: true, fields: ['season', 'round'] },
+      { name: 'races_season_round_unique', unique: true, fields: ['season', 'round'] },
     ],
   });
 
