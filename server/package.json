@@ -11,6 +11,7 @@
     "db:migrate:undo": "sequelize-cli db:migrate:undo",
     "db:seed": "sequelize-cli db:seed:all",
     "db:seed:undo": "sequelize-cli db:seed:undo:all",
+    "seed:mongo": "node src/scripts/seedMongo.js",
     "sync:f1": "node src/scripts/syncF1.js"
   },
   "keywords": [
@@ -27,6 +28,7 @@
     "express": "^5.2.1",
     "fast-xml-parser": "^5.11.1",
     "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.11.2",
     "node-cron": "^4.6.0",
     "nodemailer": "^10.0.10",
     "pg": "^8.23.0",

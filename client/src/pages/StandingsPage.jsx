@@ -1,3 +1,4 @@
+import useDocumentTitle from '../hooks/useDocumentTitle'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import api from '../api'
@@ -33,6 +34,7 @@ function SortHeader({ label, sortKey, sort, onSort, align = 'left' }) {
 }
 
 export default function StandingsPage() {
+  useDocumentTitle('Турнирная таблица')
   const [searchParams, setSearchParams] = useSearchParams()
   const type = searchParams.get('type') === 'constructors' ? 'constructors' : 'drivers'
   const [data, setData] = useState(null)

@@ -2,6 +2,7 @@ const express = require('express');
 const corsMiddleware = require('./middleware/cors');
 const routes = require('./routes');
 const { notFound, errorHandler } = require('./middleware/errorHandler');
+const { status: mongoStatus } = require('./config/mongo');
 
 const app = express();
 
@@ -16,7 +17,14 @@ app.use('/api', (req, res, next) => {
 });
 
 app.get('/api/health', (req, res) => {
-  res.json({ success: true, data: { status: 'ok', uptime: process.uptime() } });
+  res.json({
+    success: true,
+    data: {
+      status: 'ok',
+      uptime: process.uptime(),
+      databases: { postgres: 'up', mongo: mongoStatus() },
+    },
+  });
 });
 
 app.use('/api', routes);

@@ -9,6 +9,7 @@ import TeamDetailPage from './pages/TeamDetailPage'
 import CalendarPage from './pages/CalendarPage'
 import StandingsPage from './pages/StandingsPage'
 import PredictionsPage from './pages/PredictionsPage'
+import VotePage from './pages/VotePage'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import VerifyPage from './pages/VerifyPage'
@@ -33,6 +34,7 @@ const router = createBrowserRouter([
       { path: 'calendar', element: <CalendarPage /> },
       { path: 'standings', element: <StandingsPage /> },
       { path: 'predictions', element: <PredictionsPage /> },
+      { path: 'vote', element: <VotePage /> },
 
       {
         element: <RequireGuest />,

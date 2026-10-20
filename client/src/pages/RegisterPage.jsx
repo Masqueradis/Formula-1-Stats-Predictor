@@ -1,3 +1,4 @@
+import useDocumentTitle from '../hooks/useDocumentTitle'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
@@ -6,6 +7,7 @@ import Card from '../components/ui/Card'
 import Input from '../components/ui/Input'
 
 export default function RegisterPage() {
+  useDocumentTitle('Регистрация')
   const { register } = useAuth()
 
   const [form, setForm] = useState({ username: '', email: '', password: '' })

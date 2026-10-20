@@ -1,8 +1,10 @@
+import useDocumentTitle from '../hooks/useDocumentTitle'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import Card from '../components/ui/Card'
 
 export default function CabinetPage() {
+  useDocumentTitle('Личный кабинет')
   const { user } = useAuth()
   const favDrivers = user?.favoriteDrivers || []
   const favTeams = user?.favoriteTeams || []
@@ -92,7 +94,9 @@ export default function CabinetPage() {
       <Card className="p-6">
         <h2 className="mb-3 text-lg font-bold text-foreground dark:text-foreground-dark">Прогнозы</h2>
         <p className="text-sm text-muted dark:text-muted-dark">
-          Функция прогнозов будет доступна после реализации MongoDB (Лабораторная работа 6).
+          Общий (народный) прогноз на следующий Гран-при и комментарии доступны на{' '}
+          <Link to="/vote" className="font-semibold text-primary underline dark:text-accent">странице «Голосование»</Link>{' '}
+          (MongoDB, лабораторная работа 6). Личный прогноз ТОП-3 для участия в рейтинге появится позже.
         </p>
       </Card>
     </div>

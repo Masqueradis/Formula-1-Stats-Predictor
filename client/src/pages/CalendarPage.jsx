@@ -1,3 +1,4 @@
+import useDocumentTitle from '../hooks/useDocumentTitle'
 import { useCallback, useEffect, useState } from 'react'
 import api from '../api'
 import Card from '../components/ui/Card'
@@ -17,6 +18,7 @@ function formatDate(value) {
 }
 
 export default function CalendarPage() {
+  useDocumentTitle('Календарь')
   const [races, setRaces] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [isError, setIsError] = useState(false)

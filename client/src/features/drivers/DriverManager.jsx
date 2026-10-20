@@ -61,10 +61,6 @@ export default function DriverManager() {
       .catch(() => {})
   }, [])
 
-  useEffect(() => {
-    document.title = `Пилоты — ${drivers.length}`
-  }, [drivers])
-
   const visibleDrivers = useMemo(() => {
     const dir = sortOrder === 'asc' ? 1 : -1
     return [...drivers].sort((a, b) => {

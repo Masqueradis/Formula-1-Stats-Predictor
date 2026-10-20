@@ -8,6 +8,7 @@ const PUBLIC_ITEMS = [
   { to: '/calendar', label: 'Календарь' },
   { to: '/standings', label: 'Турнирная таблица' },
   { to: '/predictions', label: 'Прогнозы' },
+  { to: '/vote', label: 'Голосование' },
 ]
 
 export default function NavBar() {
