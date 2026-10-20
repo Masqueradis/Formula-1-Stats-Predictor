@@ -74,6 +74,18 @@ async function externalIdMap(queryInterface, table) {
 
 module.exports = {
   async up(queryInterface) {
+    // Идемпотентность (эпик-08): контейнер запускает сиды при каждом старте.
+    // Если данные уже вставлены (например, прошлым прогоном вне sequelize-cli),
+    // просто выходим — sequelize-cli запишет сидер в SequelizeData и не будет
+    // падать на дублях (externalId/username — уникальные ключи).
+    const [[{ count }]] = await queryInterface.sequelize.query(
+      'SELECT count(*)::int AS count FROM "teams"',
+    );
+    if (count > 0) {
+      console.log('demo-f1-data: already seeded — skip');
+      return;
+    }
+
     await queryInterface.bulkInsert('users', [
       { username: 'admin', email: 'admin@f1stats.test', passwordHash: '$2b$10$PdvgdIQTw2oa5gD0BuEI6eWPFXfa0a.JRKyw4aQHkkn9nUpwKep0e', role: 'ADMIN', isVerified: true, verificationToken: null, createdAt: new Date(), updatedAt: new Date() },
       { username: 'maxfan', email: 'maxfan@f1stats.test', passwordHash: '$2b$10$X61gU0qBJdza4hPW5/YAMuc8qXTRozBr0F6vkFFQhW9AnQwjLpTSu', role: 'USER', isVerified: true, verificationToken: null, createdAt: new Date(), updatedAt: new Date() },

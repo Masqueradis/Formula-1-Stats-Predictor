@@ -1,0 +1,15 @@
+# Не тащить в образ
+node_modules
+npm-debug.log*
+*.log
+
+# Секреты — передаются через env_file/environment в docker-compose
+.env
+.env.*
+
+# Кэш внешних данных
+.cache
+
+# Служебное
+Dockerfile
+.dockerignore

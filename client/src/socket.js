@@ -8,17 +8,19 @@ import { getToken } from './api'
  * в React StrictMode и дублей при HMR. Компоненты только подписываются на события.
  */
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
-// База сокета — тот же origin, что и API, но без хвоста /api
+const API_URL = import.meta.env.VITE_API_URL || '/api'
+// База сокета — тот же origin, что и API: '' → io() подключится к window.location
+// (проксируют vite dev-сервер и nginx; см. server.proxy в vite.config.js)
 export const SOCKET_URL =
-  import.meta.env.VITE_SOCKET_URL || API_URL.replace(/\/api\/?$/, '')
+  import.meta.env.VITE_SOCKET_URL || API_URL.replace(/^\/api\/?$/, '')
 
 let socket = null
 
 export function getSocket() {
   if (socket) return socket
 
-  socket = io(SOCKET_URL, {
+  // '' → undefined: io() без URL подключится к window.location (та же страница)
+  socket = io(SOCKET_URL || undefined, {
     // Поднимаемся сразу по WebSocket; polling оставлен как фолбэк при блокировке WS
     transports: ['websocket', 'polling'],
     autoConnect: true,
