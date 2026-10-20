@@ -4,6 +4,7 @@ require('../config/env');
 
 const cron = require('node-cron');
 const { syncSeason } = require('../services/f1SyncService');
+const realtime = require('../realtime/io');
 
 function isEnabled() {
   return String(process.env.SYNC_CRON_ENABLED || '').toLowerCase() === 'true';
@@ -26,6 +27,11 @@ function start() {
     try {
       const summary = await syncSeason(season);
       console.log(`[f1SyncJob] synced season ${season}:`, JSON.stringify(summary));
+      // Live-рассылка всем клиентам (лаба 7)
+      realtime.emitStandings({ action: 'cron-sync', season });
+      for (const change of summary.statusChanges || []) {
+        realtime.emitRaceStatus(change);
+      }
     } catch (err) {
       console.error('[f1SyncJob] sync failed:', err.message);
     }

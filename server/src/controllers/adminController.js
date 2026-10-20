@@ -4,11 +4,17 @@ const { syncSeason } = require('../services/f1SyncService');
 const driverService = require('../services/driverService');
 const teamService = require('../services/teamService');
 const apiResponse = require('../utils/apiResponse');
+const realtime = require('../realtime/io');
 
 async function syncF1(req, res) {
   const season = Number(req.body?.season) || Number(process.env.SYNC_SEASON) || new Date().getFullYear();
   try {
     const summary = await syncSeason(season);
+    // Live-рассылка: таблицы обновились + push о смене статуса гонок (лаба 7)
+    realtime.emitStandings({ action: 'sync', season });
+    for (const change of summary.statusChanges || []) {
+      realtime.emitRaceStatus(change);
+    }
     return apiResponse.success(res, summary);
   } catch (err) {
     return apiResponse.error(res, 'F1 sync failed', 502, err.message);

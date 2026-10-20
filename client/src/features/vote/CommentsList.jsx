@@ -1,6 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import api from '../../api'
+import { getSocket } from '../../socket'
+import { useSocket } from '../../context/SocketContext'
 import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
@@ -8,12 +10,47 @@ import { useToast } from '../../components/ui/Toast'
 
 export default function CommentsList({ doc, user, onChanged }) {
   const toast = useToast()
+  const { subscribe, connected } = useSocket()
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
   const [likingId, setLikingId] = useState(null)
   const [pendingDelete, setPendingDelete] = useState(null)
+  const [typingUsers, setTypingUsers] = useState([]) // [{ username, at }]
+  const lastTypingRef = useRef(0)
 
   const comments = [...(doc.comments || [])].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+
+  // Индикатор «печатает…»: приём с автоочисткой и троттлинг своей отправки
+  useEffect(() => {
+    if (!connected) return undefined
+    return subscribe('comment:typing', (payload) => {
+      if (String(payload?.raceId) !== String(doc.raceId)) return
+      if (user && Number(payload.userId) === Number(user.id)) return // свой ввод не показываем
+      const name = payload.username || 'Кто-то'
+      setTypingUsers((prev) => {
+        const others = prev.filter((t) => t.username !== name)
+        return [...others, { username: name, at: Date.now() }]
+      })
+    })
+  }, [subscribe, connected, doc.raceId, user])
+
+  // Автоочистка индикатора через 3 c без новых событий
+  useEffect(() => {
+    if (typingUsers.length === 0) return undefined
+    const timer = window.setInterval(() => {
+      const now = Date.now()
+      setTypingUsers((prev) => prev.filter((t) => now - t.at < 3000))
+    }, 1000)
+    return () => window.clearInterval(timer)
+  }, [typingUsers.length])
+
+  const emitTyping = (value) => {
+    if (!connected || !value) return
+    const now = Date.now()
+    if (now - lastTypingRef.current < 1500) return // троттлинг ≤1 события в 1.5 c
+    lastTypingRef.current = now
+    getSocket().emit('comment:typing', { raceId: String(doc.raceId) })
+  }
 
   const addComment = async (e) => {
     e.preventDefault()
@@ -69,7 +106,7 @@ export default function CommentsList({ doc, user, onChanged }) {
         <form onSubmit={addComment} className="mb-4 flex flex-col gap-2 sm:flex-row">
           <input
             value={text}
-            onChange={(e) => setText(e.target.value)}
+            onChange={(e) => { setText(e.target.value); emitTyping(e.target.value) }}
             maxLength={2000}
             placeholder="Обсудите народный прогноз этой гонки…"
             className="flex-1 rounded-lg border border-border-soft bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary dark:border-border-dark dark:bg-background-dark dark:text-foreground-dark dark:focus:border-accent"
@@ -84,6 +121,17 @@ export default function CommentsList({ doc, user, onChanged }) {
           <Link to="/login" className="font-semibold text-primary underline dark:text-accent">
             Войти
           </Link>
+        </p>
+      )}
+
+      {typingUsers.length > 0 && connected && (
+        <p className="mb-3 flex items-center gap-1.5 text-xs italic text-muted dark:text-muted-dark">
+          <span className="inline-flex gap-0.5">
+            <span className="h-1 w-1 animate-bounce rounded-full bg-primary dark:bg-accent" />
+            <span className="h-1 w-1 animate-bounce rounded-full bg-primary [animation-delay:150ms] dark:bg-accent" />
+            <span className="h-1 w-1 animate-bounce rounded-full bg-primary [animation-delay:300ms] dark:bg-accent" />
+          </span>
+          {typingUsers.map((t) => t.username).join(', ')} {typingUsers.length === 1 ? 'печатает' : 'печатают'}…
         </p>
       )}
 

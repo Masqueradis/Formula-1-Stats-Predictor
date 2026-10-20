@@ -2,6 +2,7 @@ import useDocumentTitle from '../hooks/useDocumentTitle'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import api from '../api'
+import { useSocket } from '../context/SocketContext'
 import Card from '../components/ui/Card'
 import Spinner from '../components/ui/Spinner'
 
@@ -35,27 +36,37 @@ function SortHeader({ label, sortKey, sort, onSort, align = 'left' }) {
 
 export default function StandingsPage() {
   useDocumentTitle('Турнирная таблица')
+  const { subscribe } = useSocket()
   const [searchParams, setSearchParams] = useSearchParams()
   const type = searchParams.get('type') === 'constructors' ? 'constructors' : 'drivers'
   const [data, setData] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isError, setIsError] = useState(false)
   const [sort, setSort] = useState({ key: 'points', dir: 'desc' })
+  const [liveAt, setLiveAt] = useState(0) // момент последнего live-обновления (для бейджа)
 
-  const load = useCallback(async () => {
-    setIsLoading(true)
+  const load = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) setIsLoading(true)
     setIsError(false)
     try {
       const res = await api.get('/standings', { params: { type } })
       setData(res.data.data)
     } catch {
-      setIsError(true)
+      if (!silent) setIsError(true)
     } finally {
-      setIsLoading(false)
+      if (!silent) setIsLoading(false)
     }
   }, [type])
 
   useEffect(() => { load() }, [load])
+
+  // Live-обновление таблицы (лаба 7): событие standings:update → тихий refetch без спиннера
+  useEffect(() => {
+    return subscribe('standings:update', () => {
+      setLiveAt(Date.now())
+      load({ silent: true })
+    })
+  }, [subscribe, load])
 
   const standings = data?.standings || []
 
@@ -106,7 +117,7 @@ export default function StandingsPage() {
         <p className="mb-4 text-sm font-medium text-red-500">Не удалось загрузить таблицу</p>
         <button
           type="button"
-          onClick={load}
+          onClick={() => load()}
           className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary-hover dark:bg-accent dark:hover:bg-accent-hover"
         >
           Повторить
@@ -121,7 +132,15 @@ export default function StandingsPage() {
         <h1 className="text-2xl font-bold text-foreground dark:text-foreground-dark">
           {type === 'constructors' ? 'Кубок конструкторов' : 'Личный зачёт'}
         </h1>
-        <p className="mt-1 text-sm text-muted dark:text-muted-dark">Сезон {data.season}</p>
+        <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted dark:text-muted-dark">
+          <span>Сезон {data.season}</span>
+          {liveAt > 0 && (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" aria-hidden />
+              обновлено в реальном времени
+            </span>
+          )}
+        </p>
       </div>
 
       <div className="flex items-center gap-2">

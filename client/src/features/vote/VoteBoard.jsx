@@ -136,7 +136,7 @@ function eColor(entry) {
   return entry.teamColor || '#0ea5e9'
 }
 
-export default function VoteBoard({ doc, user, onChanged }) {
+export default function VoteBoard({ doc, user, onChanged, onBusyChange }) {
   const toast = useToast()
   const entries = doc.entries || []
   const myVote = user ? (doc.votes || []).find((v) => Number(v.userId) === Number(user.id)) : null
@@ -144,8 +144,15 @@ export default function VoteBoard({ doc, user, onChanged }) {
   const [editing, setEditing] = useState(!myVote)
   const [slots, setSlots] = useState(() => entries.map(() => null)) // index+1 = позиция
   const [busy, setBusy] = useState(false)
+  const [isDragging, setIsDragging] = useState(false) // активное перетаскивание
   const [dragState, setDragState] = useState(null) // data.current активного элемента во время drag
   const [overId, setOverId] = useState(null) // id текущей зоны слёта (slot-N | pool | null)
+
+  // Сообщаем наверх, что доска занята (перетаскивание/сохранение) —
+  // страница не станет перезаписывать doc из live-событий в этот момент
+  useEffect(() => {
+    if (onBusyChange) onBusyChange(Boolean(busy || isDragging))
+  }, [busy, isDragging, onBusyChange])
 
   // Предзаполнение слотов из моего голоса / очистка
   useEffect(() => {
@@ -200,6 +207,7 @@ export default function VoteBoard({ doc, user, onChanged }) {
 
   /** Подсветка зоны слёта: куда попадёт пилот при отпускании */
   const handleDragStart = ({ active }) => {
+    setIsDragging(true)
     setDragState({ ...active.data.current })
   }
 
@@ -209,6 +217,7 @@ export default function VoteBoard({ doc, user, onChanged }) {
   }
 
   const handleDragCancel = () => {
+    setIsDragging(false)
     setDragState(null)
     setOverId(null)
   }
@@ -220,6 +229,7 @@ export default function VoteBoard({ doc, user, onChanged }) {
    * - слот → пул: пилот убирается со слота в пул.
    */
   const handleDragEnd = ({ active, over }) => {
+    setIsDragging(false)
     setDragState(null)
     setOverId(null)
     if (!over || !canEdit) return
