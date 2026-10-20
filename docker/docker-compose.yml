@@ -1,4 +1,19 @@
+# Лаба 8 — единый compose-файл: инфраструктура + приложение.
+#
+# Режимы:
+#   Прод (сдача лабы):   docker compose -f docker/docker-compose.yml up --build
+#                         → postgres + mongo + mailhog + backend + frontend (nginx :80)
+#   Dev (hot-reload):     make dev
+#                         → профиль dev: backend-dev (nodemon) + frontend-dev (vite :5173)
+#   Только инфраструктура: make up
+#
+# Сети (изоляция):
+#   frontend — frontend ↔ backend (nginx/vite проксируют на backend)
+#   backend  — backend ↔ postgres/mongo/mailhog; фронтенд сюда НЕ попадает,
+#              БД видны только бэкенду. Порты БД опубликованы на хост для DataGrip/psql.
+
 services:
+  # ─── Инфраструктура ────────────────────────────────────────────────
   postgres:
     image: postgres:16-alpine
     container_name: f1stats-postgres
@@ -16,6 +31,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - backend
 
   mailhog:
     image: mailhog/mailhog
@@ -24,6 +41,8 @@ services:
     ports:
       - "1025:1025"
       - "8025:8025"
+    networks:
+      - backend
 
   mongo:
     image: mongo:7
@@ -38,6 +57,125 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - backend
+
+  # ─── Backend (прод) ────────────────────────────────────────────────
+  # Порт на хост НЕ пробрасывается (решение сессии): доступ только через
+  # nginx-прокси frontend (/api, /socket.io).
+  backend:
+    build: ../server
+    container_name: f1stats-backend
+    restart: unless-stopped
+    env_file: ../.env
+    environment:
+      # Имена сервисов вместо localhost — контейнеры общаются по внутренней сети
+      DATABASE_URL: postgresql://${POSTGRES_USER:-f1user}:${POSTGRES_PASSWORD:-f1pass}@postgres:5432/${POSTGRES_DB:-f1stats}
+      MONGO_URI: mongodb://mongo:27017/f1stats
+      SMTP_HOST: mailhog
+      SMTP_PORT: "1025"
+      # CORS/ссылки в письмах — origin'ы nginx (:80) и vite (:5173)
+      CORS_ORIGINS: http://localhost,http://localhost:5173
+      FRONTEND_URL: http://localhost
+      JWT_SECRET: ${JWT_SECRET:-dev-f1-secret-change-in-production}
+      # production-секция config.json включает SSL для postgres — в контейнере его нет
+      NODE_ENV: development
+      PORT: "3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+    healthcheck:
+      # node:22 умеет fetch — curl/wget в alpine-образе нет
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - frontend
+      - backend
+
+  # ─── Frontend (прод): многоэтапный образ → nginx + reverse-proxy ──
+  frontend:
+    build: ../client
+    container_name: f1stats-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - frontend
+
+  # ─── Dev-стек (профиль "dev"): hot-reload ─────────────────────────
+  # Запуск: docker compose --profile dev up -d backend-dev frontend-dev
+  # (или make dev). Исходники монтируются с хоста, node_modules остаётся
+  # из образа — правки src подхватываются на лету.
+
+  backend-dev:
+    profiles: [dev]
+    build: ../server
+    container_name: f1stats-backend-dev
+    restart: unless-stopped
+    command: npm run dev # nodemon (dev-скрипт)
+    env_file: ../.env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-f1user}:${POSTGRES_PASSWORD:-f1pass}@postgres:5432/${POSTGRES_DB:-f1stats}
+      MONGO_URI: mongodb://mongo:27017/f1stats
+      SMTP_HOST: mailhog
+      SMTP_PORT: "1025"
+      CORS_ORIGINS: http://localhost,http://localhost:5173
+      FRONTEND_URL: http://localhost:5173
+      JWT_SECRET: ${JWT_SECRET:-dev-f1-secret-change-in-production}
+      NODE_ENV: development
+      PORT: "3000"
+    volumes:
+      - ../server/src:/app/src
+      - ../server/migrations:/app/migrations
+      - ../server/seeders:/app/seeders
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+    networks:
+      - frontend
+      - backend
+
+  frontend-dev:
+    profiles: [dev]
+    build:
+      context: ../client
+      target: builder # stage со сборочным окружением (vite), без nginx
+    container_name: f1stats-frontend-dev
+    restart: unless-stopped
+    command: npm run dev # vite dev-сервер с прокси /api и /socket.io
+    ports:
+      - "5173:5173"
+    environment:
+      # vite.config.js проксирует /api и /socket.io на dev-бэкенд внутри сети
+      VITE_PROXY_TARGET: http://backend-dev:3000
+    volumes:
+      - ../client/src:/app/src
+      - ../client/index.html:/app/index.html
+      - ../client/vite.config.js:/app/vite.config.js
+      - ../client/public:/app/public
+    depends_on:
+      - backend-dev
+    networks:
+      - frontend
+      - backend
+
+networks:
+  frontend:
+  backend:
 
 volumes:
   pgdata:

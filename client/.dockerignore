@@ -1,0 +1,13 @@
+# Не тащить в образ
+node_modules
+dist
+npm-debug.log*
+*.log
+
+# Секреты/окружение
+.env
+.env.*
+
+# Служебное
+Dockerfile
+.dockerignore

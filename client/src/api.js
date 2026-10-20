@@ -3,7 +3,9 @@ import axios from 'axios'
 const TOKEN_KEY = 'token'
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000/api',
+  // Относительный путь: /api проксирует vite dev-сервер (dev-контейнер)
+  // и nginx (prod-контейнер) → одинаковый адрес везде, CORS не нужен
+  baseURL: import.meta.env.VITE_API_URL || '/api',
 })
 
 api.interceptors.request.use((config) => {

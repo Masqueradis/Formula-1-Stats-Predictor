@@ -1,24 +1,35 @@
 COMPOSE = docker compose -f docker/docker-compose.yml
+# Полный стек (включая dev-профиль: nodemon + vite)
+COMPOSE_ALL = $(COMPOSE) --profile dev
 DGREEN := \033[32m
 RESET := \033[0m
 
-.PHONY: help up down stop psql mongo mailhog migrate seed seedmongo reset sync server client dev
+.PHONY: help up app dev down stop logs logs-dev psql mongo mailhog migrate seed seedmongo reset sync
 
 help: ## Показать все команды
 	@echo "$(DGREEN)Доступные команды:$(RESET)"
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
 
-up: ## Поднять инфраструктуру (БД + Mailhog) + миграции + сиды
-	$(COMPOSE) up -d
-	cd server && npm run db:migrate && npm run db:seed
+up: ## Поднять только инфраструктуру (БД + Mailhog)
+	$(COMPOSE) up -d postgres mongo mailhog
 
-down: ## Остановить инфраструктуру
-	$(COMPOSE) down
+app: ## Прод-стек как в лабе 8: backend + frontend (nginx) + БД
+	$(COMPOSE) up -d --build
 
-stop: ## Остановить сервер и клиент (nodemon, vite)
-	@pkill -f '[n]odemon' >/dev/null 2>&1 || true
-	@pkill -f '[v]ite' >/dev/null 2>&1 || true
-	@echo "Stopped: nodemon/vite"
+dev: ## Dev-стек с hot-reload: nodemon (:3000 внутри) + vite на http://localhost:5173
+	$(COMPOSE_ALL) up -d --build backend-dev frontend-dev
+
+down: ## Остановить и удалить все контейнеры проекта (вкл. dev-профиль)
+	$(COMPOSE_ALL) down
+
+stop: ## Остановить контейнеры приложения (инфраструктура остаётся)
+	$(COMPOSE_ALL) stop backend frontend backend-dev frontend-dev
+
+logs: ## Логи прод-контейнеров
+	$(COMPOSE) logs -f backend frontend
+
+logs-dev: ## Логи dev-контейнеров (nodemon/vite)
+	$(COMPOSE_ALL) logs -f backend-dev frontend-dev
 
 psql: ## Открыть psql в контейнере БД
 	$(COMPOSE) exec postgres psql -U $${POSTGRES_USER:-f1user} -d $${POSTGRES_DB:-f1stats}
@@ -29,31 +40,19 @@ mongo: ## Открыть mongosh в контейнере MongoDB
 mailhog: ## Открыть web-интерфейс Mailhog
 	@xdg-open http://localhost:8025 >/dev/null 2>&1 || open http://localhost:8025 || echo "Открой в браузере: http://localhost:8025"
 
-migrate: ## Применить миграции
-	cd server && npm run db:migrate
+migrate: ## Применить миграции (в контейнере, без запуска backend)
+	$(COMPOSE) run --rm --entrypoint npx backend sequelize-cli db:migrate
 
-seed: ## Засеять данные
-	cd server && npm run db:seed
+seed: ## Засеять данные (в контейнере, без запуска backend)
+	$(COMPOSE) run --rm --entrypoint npx backend sequelize-cli db:seed:all
 
 seedmongo: ## Засеять демо-данные в MongoDB (народный прогноз)
-	cd server && npm run seed:mongo
+	$(COMPOSE) run --rm --entrypoint npm backend run seed:mongo
 
 reset: ## Полный сброс БД (DROP schema + миграции + сиды)
 	$(COMPOSE) exec -T postgres psql -U $${POSTGRES_USER:-f1user} -d $${POSTGRES_DB:-f1stats} -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;'
-	cd server && npm run db:migrate
-	cd server && npm run db:seed
+	$(COMPOSE) run --rm --entrypoint npx backend sequelize-cli db:migrate
+	$(COMPOSE) run --rm --entrypoint npx backend sequelize-cli db:seed:all
 
 sync: ## Синхронизировать данные с Jolpica-F1 (по умолчанию текущий сезон)
-	cd server && npm run sync:f1
-
-server: ## Запустить бэкенд
-	cd server && npm run dev
-
-client: ## Запустить фронтенд
-	cd client && npm run dev
-
-dev: ## Запустить сервер и клиент (клиент в фореграунде)
-	@(trap 'pkill -f "[n]odemon" >/dev/null 2>&1; pkill -f "[v]ite" >/dev/null 2>&1; echo "Stopped"; exit 0' INT TERM EXIT; cd server && npm run dev > /tmp/f1-server.log 2>&1 & echo "Server log: /tmp/f1-server.log"); \
-	echo "Server log: /tmp/f1-server.log"; \
-	echo "Client: http://localhost:5173  Mailhog: http://localhost:8025"; \
-	cd client && npm run dev
+	$(COMPOSE) run --rm --entrypoint npm backend run sync:f1
