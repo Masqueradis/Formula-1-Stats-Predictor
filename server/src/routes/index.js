@@ -9,6 +9,8 @@ router.use('/season-teams', require('./seasonTeamRoutes'));
 router.use('/users', require('./userRoutes'));
 router.use('/news', require('./newsRoutes'));
 router.use('/standings', require('./standingsRoutes'));
+router.use('/probabilities', require('./probabilityRoutes'));
+router.use('/leaderboard', require('./leaderboardRoutes'));
 router.use('/predictions', require('./predictionRoutes'));
 router.use('/admin', require('./adminRoutes'));
 

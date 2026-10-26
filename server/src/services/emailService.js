@@ -92,4 +92,38 @@ function sendWelcomeEmail(to, username) {
   return sendMail({ to, subject: 'Аккаунт подтверждён — Simply Lovely', html: layout('Почта подтверждена', body) });
 }
 
-module.exports = { sendVerificationEmail, sendWelcomeEmail };
+/**
+ * Напоминание о гонке за ≤24 часа (эпик-09 todo 7): дата/трасса + избранные
+ * пилоты пользователя + ссылка на голосование.
+ */
+function sendRaceReminderEmail(to, username, race, favoriteDrivers = []) {
+  const base = process.env.FRONTEND_URL || 'http://localhost:5173';
+  const voteUrl = `${base}/vote`;
+  const date = race.date
+    ? new Date(`${race.date}T00:00:00`).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
+    : 'дата неизвестна';
+  const driversList = favoriteDrivers
+    .map((driver) => htmlEscape(driver.abbreviation ? `${driver.firstName} ${driver.lastName} (${driver.abbreviation})` : `${driver.firstName} ${driver.lastName}`))
+    .join(', ');
+
+  const body = `
+    <p>Здравствуйте, <strong>${htmlEscape(username)}</strong>!</p>
+    <p>Скоро старт Гран-при — не забудьте сделать прогноз:</p>
+    <p style="font-size:16px;margin:16px 0">
+      <strong>${htmlEscape(race.name)}</strong><br>
+      ${htmlEscape(date)}${race.circuit ? `<br>${htmlEscape(race.circuit)}, ${htmlEscape(race.country)}` : ''}
+    </p>
+    ${driversList ? `<p>Ваши избранные пилоты: <strong>${driversList}</strong></p>` : ''}
+    <p style="text-align:center;margin:24px 0">
+      <a href="${voteUrl}"
+         style="background:#e80020;color:#fff;text-decoration:none;padding:12px 24px;border-radius:6px;display:inline-block">
+        Сделать прогноз
+      </a>
+    </p>
+    <p style="color:#64748b;font-size:13px">Голосование закрывается с началом гонки. Если кнопка не работает — откройте ссылку: <a href="${voteUrl}">${htmlEscape(voteUrl)}</a></p>
+    <p style="color:#64748b;font-size:13px">Письмо отправлено автоматически. Отписаться можно, убрав пилотов из избранного в кабинете.</p>
+  `;
+  return sendMail({ to, subject: `Скоро Гран-при: ${race.name} — Simply Lovely`, html: layout('Не забудьте прогноз!', body) });
+}
+
+module.exports = { sendVerificationEmail, sendWelcomeEmail, sendRaceReminderEmail };

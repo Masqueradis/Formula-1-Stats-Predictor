@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const { JWT_SECRET } = require('../middleware/authenticate');
 const userRepository = require('../repositories/userRepository');
 const { sendVerificationEmail, sendWelcomeEmail } = require('./emailService');
+const logger = require('../utils/logger');
 
 function signToken(user) {
   return jwt.sign(
@@ -81,18 +82,22 @@ async function login({ email, password }) {
 
   const user = await userRepository.findByEmail(email);
   if (!user) {
+    logger.warn('auth.login', { email, result: 'unknown_email' });
     return { error: 'Invalid credentials', status: 401 };
   }
 
   if (!user.isVerified) {
+    logger.warn('auth.login', { userId: user.id, email, result: 'not_verified' });
     return { error: 'Email not verified. Check your inbox.', status: 403 };
   }
 
   const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) {
+    logger.warn('auth.login', { userId: user.id, email, result: 'bad_password' });
     return { error: 'Invalid credentials', status: 401 };
   }
 
+  logger.info('auth.login', { userId: user.id, email, result: 'success' });
   const token = signToken(user);
   return { data: { token, user: publicUser(user) } };
 }

@@ -1,4 +1,6 @@
 const driverService = require('../services/driverService');
+const wikiService = require('../services/wikiService');
+const careerService = require('../services/careerService');
 const apiResponse = require('../utils/apiResponse');
 
 async function getAll(req, res) {
@@ -56,4 +58,26 @@ async function remove(req, res) {
   }
 }
 
-module.exports = { getAll, getById, create, update, remove };
+/** Биография и фото из Wikipedia (ru → en фолбэк) — эпик-09, P2 */
+async function getWiki(req, res) {
+  try {
+    const result = await wikiService.getDriverWiki(req.params.id);
+    if (result.error) return apiResponse.error(res, result.error, result.status || 400);
+    return apiResponse.success(res, result);
+  } catch (err) {
+    return apiResponse.error(res, err.message, err.status || 500);
+  }
+}
+
+/** Карьера пилота: Jolpica/Ergast + локальный fallback — эпик-09, P4 */
+async function getCareer(req, res) {
+  try {
+    const result = await careerService.getCareer(req.params.id);
+    if (result.error) return apiResponse.error(res, result.error, result.status || 400);
+    return apiResponse.success(res, result);
+  } catch (err) {
+    return apiResponse.error(res, err.message, err.status || 500);
+  }
+}
+
+module.exports = { getAll, getById, create, update, remove, getWiki, getCareer };

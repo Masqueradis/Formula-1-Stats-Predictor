@@ -32,9 +32,15 @@ const voteSchema = new mongoose.Schema({
   userId: { type: Number, required: true },      // users.id (PostgreSQL)
   username: { type: String, required: true },
   // 'full' — перестановка 1..N по всем пилотам (народный прогноз, эпик-06)
-  // 'top3' — личный прогноз кабинета US-5 (будущая фича, формат зарезервирован)
+  // 'top3' — личный прогноз ТОП-3 кабинета (US-5, эпик-09)
   kind: { type: String, enum: ['full', 'top3'], default: 'full' },
   picks: { type: [pickSchema], default: [] },
+  // UC-2: баллы по итогам гонки (null — ещё не оценён; считает cron leaderboardJob)
+  // правило: точное место +3; неверное, но пилот реально в ТОП-3 (и предсказан на ТОП-3) +1
+  score: { type: Number, default: null },
+  exactHits: { type: Number, default: null },   // точных совпадений мест
+  podiumHits: { type: Number, default: null },  // попаданий в ТОП-3 с неверным местом
+  scoredAt: { type: Date, default: null },
 }, { timestamps: true });
 
 // Комментарий к гонке (вложенный документ + массив likes)

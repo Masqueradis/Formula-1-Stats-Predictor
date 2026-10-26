@@ -7,6 +7,7 @@ const seasonTeamRepository = require('../repositories/seasonTeamRepository');
 const userRepository = require('../repositories/userRepository');
 const predictionRepository = require('../repositories/predictionRepository');
 const realtime = require('../realtime/io');
+const logger = require('../utils/logger');
 
 function httpError(status, message) {
   const err = new Error(message);
@@ -305,7 +306,10 @@ async function createVote(rawRaceId, user, body) {
     picks,
   });
   // Атомарное условие не совпало → голос этого пользователя уже есть
-  if (!updated) throw httpError(409, 'You have already voted in this race');
+  if (!updated) {
+    throw httpError(409, `You have already submitted a "${kind}" prediction for this race`);
+  }
+  logger.info('prediction.vote', { raceId: doc.raceId, userId: user.id, kind, action: 'created' });
   const presented = presentDoc(updated);
   // Live-обновление народного прогноза для зрителей комнаты гонки (лаба 7)
   realtime.emitVote(doc.raceId, { action: 'created', userId: user.id, username, votesCount: presented.votes.length });
@@ -326,6 +330,7 @@ async function updateVote(rawRaceId, targetUserId, user, body) {
 
   const updated = await predictionRepository.updateVote(doc.raceId, targetId, { kind, picks });
   if (!updated) throw httpError(404, 'Vote not found');
+  logger.info('prediction.vote', { raceId: doc.raceId, userId: targetId, kind, action: 'updated' });
   const presented = presentDoc(updated);
   realtime.emitVote(doc.raceId, {
     action: 'updated',
@@ -336,17 +341,21 @@ async function updateVote(rawRaceId, targetUserId, user, body) {
   return presented;
 }
 
-async function removeVote(rawRaceId, targetUserId, user) {
+/** kind опционален (query `?kind=full|top3`): без него удаляются все голоса пользователя на гонку */
+async function removeVote(rawRaceId, targetUserId, user, rawKind) {
   const targetId = parseId(targetUserId);
   if (targetId === null) throw httpError(404, 'Vote not found');
   if (targetId !== user.id && user.role !== 'ADMIN') {
     throw httpError(403, 'You can only delete your own vote');
   }
+  if (rawKind !== undefined && rawKind !== 'full' && rawKind !== 'top3') {
+    throw httpError(400, 'kind must be "full" or "top3"');
+  }
 
   const { doc } = await getDocForRace(rawRaceId);
   assertVotingOpen(doc);
 
-  const updated = await predictionRepository.removeVote(doc.raceId, targetId);
+  const updated = await predictionRepository.removeVote(doc.raceId, targetId, rawKind);
   if (!updated) throw httpError(404, 'Vote not found');
   const presented = presentDoc(updated);
   realtime.emitVote(doc.raceId, {
@@ -459,6 +468,7 @@ async function cascadeRemoveByRace(race) {
   }
 }
 
+// normalizePicks/validatePicks/isVotingOpen — экспортируются для unit-тестов (эпик-09)
 module.exports = {
   getAll,
   getByRaceId,
@@ -472,4 +482,7 @@ module.exports = {
   toggleLike,
   removeRaceDoc,
   cascadeRemoveByRace,
+  normalizePicks,
+  validatePicks,
+  isVotingOpen,
 };

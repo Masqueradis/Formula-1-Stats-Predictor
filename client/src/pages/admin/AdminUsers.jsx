@@ -5,7 +5,7 @@ import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import Spinner from '../../components/ui/Spinner'
-import { useToast } from '../../components/ui/Toast'
+import { useToast } from '../../components/ui/useToast'
 
 export default function AdminUsers() {
   useDocumentTitle('Админ — Пользователи')
@@ -15,10 +15,6 @@ export default function AdminUsers() {
   const [error, setError] = useState('')
   const [confirm, setConfirm] = useState(null)
   const [pendingId, setPendingId] = useState(null)
-
-  useEffect(() => {
-    loadUsers()
-  }, [])
 
   const loadUsers = useCallback(async () => {
     setLoading(true)
@@ -31,6 +27,10 @@ export default function AdminUsers() {
     }
     setLoading(false)
   }, [])
+
+  useEffect(() => {
+    loadUsers()
+  }, [loadUsers])
 
   const deleteUser = async (id) => {
     const previous = users.find(u => u.id === id)

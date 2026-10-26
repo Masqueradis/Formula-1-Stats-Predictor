@@ -1,18 +1,14 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { getSocket, refreshSocketAuth } from '../socket'
-import { useAuth } from './AuthContext'
+import { useAuth } from './useAuth'
+import { SocketContext } from './useSocket'
 
 /**
  * SocketContext (лаба 7): единая точка доступа к realtime.
  *
- * - `connected` / `status` — состояние соединения;
- * - `presence` — { connections, users, usersCount, guests } (онлайн);
- * - `subscribe(event, handler)` — подписка с автоотпиской, возвращает unsubscribe.
- *
  * Соединение живёт в синглтоне (`src/socket.js`), поэтому StrictMode/HMR не создают дублей.
+ * Сам контекст и хук `useSocket` — в `useSocket.js`.
  */
-
-const SocketContext = createContext(null)
 
 const STATUS_LABELS = {
   connected: 'подключено',
@@ -25,13 +21,10 @@ export function SocketProvider({ children }) {
   const { isInitializing, user } = useAuth()
   const [status, setStatus] = useState('connecting')
   const [presence, setPresence] = useState({ connections: 0, users: [], usersCount: 0, guests: 0 })
-  // Отложенный коннект: ждём bootstrap AuthContext, чтобы handshake ушёл уже с токеном
-  const [ready, setReady] = useState(false)
+  // Отложенный коннект: ждём bootstrap AuthContext, чтобы handshake ушёл уже с токеном.
+  // isInitializing меняется один раз (false), поэтому ready выводится напрямую — без state и эффекта
+  const ready = !isInitializing
   const prevUserRef = useRef(undefined)
-
-  useEffect(() => {
-    if (!isInitializing) setReady(true)
-  }, [isInitializing])
 
   // Пересоздание handshake при смене пользователя (login/logout/401-refresh)
   useEffect(() => {
@@ -105,10 +98,3 @@ export function SocketProvider({ children }) {
   return <SocketContext.Provider value={value}>{children}</SocketContext.Provider>
 }
 
-export function useSocket() {
-  const ctx = useContext(SocketContext)
-  if (!ctx) throw new Error('useSocket must be used within SocketProvider')
-  return ctx
-}
-
-export default useSocket

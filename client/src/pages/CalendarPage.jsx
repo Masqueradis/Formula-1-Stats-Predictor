@@ -17,6 +17,75 @@ function formatDate(value) {
   return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
 }
 
+/**
+ * Погода на уик-энд ГП (эпик-09, P2): ленивая загрузка по клику —
+ * бэкенд ходит в Open-Meteo и кэширует ответ на 30 минут.
+ */
+function WeatherWidget({ raceId }) {
+  const [state, setState] = useState('idle') // idle | loading | ready | error
+  const [weather, setWeather] = useState(null)
+  const [error, setError] = useState('')
+
+  const load = async () => {
+    setState('loading')
+    try {
+      const { data } = await api.get(`/races/${raceId}/weather`)
+      setWeather(data.data)
+      setState('ready')
+    } catch (err) {
+      setError(err.response?.data?.error || 'Погода недоступна')
+      setState('error')
+    }
+  }
+
+  if (state === 'idle') {
+    return (
+      <button
+        type="button"
+        onClick={load}
+        className="rounded-lg border border-border-soft px-3 py-1.5 text-xs font-semibold text-muted transition-colors hover:border-primary hover:text-primary dark:border-border-dark dark:hover:border-accent dark:hover:text-accent"
+      >
+        🌤 Погода
+      </button>
+    )
+  }
+
+  if (state === 'loading') {
+    return <span className="px-1 text-xs text-muted dark:text-muted-dark">Загрузка погоды…</span>
+  }
+
+  if (state === 'error') {
+    return (
+      <div className="flex items-center gap-2 text-xs text-muted dark:text-muted-dark">
+        <span>{error}</span>
+        <button
+          type="button"
+          onClick={load}
+          className="font-semibold text-primary underline dark:text-accent"
+        >
+          Ещё раз
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="rounded-lg border border-border-soft px-3 py-2 text-xs dark:border-border-dark">
+      <span className="font-bold text-foreground dark:text-foreground-dark">
+        {weather.weatherLabel}
+      </span>
+      <span className="mx-2 text-muted dark:text-muted-dark">
+        {weather.temperatureMin}…{weather.temperatureMax} °C
+      </span>
+      <span className="text-muted dark:text-muted-dark">
+        💧 {weather.precipitationProbability ?? '—'}%
+        {' · '}
+        🌬 {weather.windSpeedMax ?? '—'} км/ч
+      </span>
+    </div>
+  )
+}
+
 export default function CalendarPage() {
   useDocumentTitle('Календарь')
   const [races, setRaces] = useState([])
@@ -80,6 +149,11 @@ export default function CalendarPage() {
                   <p className="mt-0.5 truncate text-sm text-muted dark:text-muted-dark">
                     {[race.circuit, race.country].filter(Boolean).join(' · ')}
                   </p>
+                  {race.status === 'scheduled' && (
+                    <div className="mt-2">
+                      <WeatherWidget raceId={race.id} />
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-4 sm:flex-col sm:items-end sm:gap-1">
@@ -89,6 +163,16 @@ export default function CalendarPage() {
                   <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${status.className}`}>
                     {status.label}
                   </span>
+                  {race.broadcastUrl && (
+                    <a
+                      href={race.broadcastUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-bold text-primary transition-colors hover:bg-primary/20 dark:bg-accent/10 dark:text-accent dark:hover:bg-accent/20"
+                    >
+                      📺 Смотреть трансляцию
+                    </a>
+                  )}
                 </div>
 
                 {race.winner && (

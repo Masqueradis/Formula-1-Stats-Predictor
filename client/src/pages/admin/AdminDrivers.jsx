@@ -7,7 +7,7 @@ import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import Input from '../../components/ui/Input'
 import Select from '../../components/ui/Select'
 import Spinner from '../../components/ui/Spinner'
-import { useToast } from '../../components/ui/Toast'
+import { useToast } from '../../components/ui/useToast'
 
 const EMPTY_FORM = {
   firstName: '',
@@ -37,10 +37,6 @@ export default function AdminDrivers() {
   const [confirm, setConfirm] = useState(null)
   const [pendingId, setPendingId] = useState(null)
 
-  useEffect(() => {
-    loadAll()
-  }, [])
-
   const loadAll = useCallback(async () => {
     setLoading(true)
     setError('')
@@ -53,6 +49,10 @@ export default function AdminDrivers() {
     }
     setLoading(false)
   }, [])
+
+  useEffect(() => {
+    loadAll()
+  }, [loadAll])
 
   const visibleDrivers = useMemo(() => {
     if (filter === 'active') return drivers.filter(d => d.isActive !== false)

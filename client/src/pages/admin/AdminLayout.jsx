@@ -4,6 +4,7 @@ import Card from '../../components/ui/Card'
 const TABS = [
   { to: '/admin/drivers', label: 'Пилоты' },
   { to: '/admin/teams', label: 'Команды' },
+  { to: '/admin/races', label: 'Гонки' },
   { to: '/admin/results', label: 'Результаты' },
   { to: '/admin/users', label: 'Пользователи' },
   { to: '/admin/sync', label: 'Данные' },

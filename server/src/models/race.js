@@ -56,6 +56,11 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.DECIMAL(9, 6),
       allowNull: true,
     },
+    // US-7 (эпик-09): ссылка на онлайн-трансляцию (заполняется админом)
+    broadcastUrl: {
+      type: DataTypes.STRING(500),
+      allowNull: true,
+    },
   }, {
     sequelize,
     modelName: 'Race',

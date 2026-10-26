@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../context/useAuth'
 
 const PUBLIC_ITEMS = [
   { to: '/', label: 'Главная', end: true },
@@ -9,6 +9,7 @@ const PUBLIC_ITEMS = [
   { to: '/standings', label: 'Турнирная таблица' },
   { to: '/predictions', label: 'Прогнозы' },
   { to: '/vote', label: 'Голосование' },
+  { to: '/leaderboard', label: 'Рейтинг' },
 ]
 
 export default function NavBar() {

@@ -1,4 +1,4 @@
-import { useSocket } from '../context/SocketContext'
+import { useSocket } from '../context/useSocket'
 
 /**
  * Индикатор realtime-соединения и онлайна (лаба 7).

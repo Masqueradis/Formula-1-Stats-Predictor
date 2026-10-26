@@ -173,10 +173,65 @@ services:
       - frontend
       - backend
 
+  # ─── Мониторинг (эпик-09, Phase 6b): Loki + Promtail + Grafana ───
+  # Promtail собирает stdout всех контейнеров через docker_sd → Loki.
+  # Grafana: http://localhost:3001 (admin/admin или $GRAFANA_PASSWORD),
+  # дашборд «F1 Stats — логи» провижинен из monitoring/grafana/.
+  loki:
+    image: grafana/loki:3.2.1
+    container_name: f1stats-loki
+    restart: unless-stopped
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ./monitoring/loki-config.yml:/etc/loki/local-config.yaml:ro
+      - lokidata:/loki
+    ports:
+      - "3100:3100"
+    networks:
+      - monitoring
+
+  promtail:
+    image: grafana/promtail:3.2.1
+    container_name: f1stats-promtail
+    restart: unless-stopped
+    command: -config.file=/etc/promtail/config.yml
+    volumes:
+      - ./monitoring/promtail-config.yml:/etc/promtail/config.yml:ro
+      # docker_sd: доступ к API демона для диска контейнеров…
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - loki
+    networks:
+      - monitoring
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: f1stats-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+    volumes:
+      - grafanadata:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3001:3000"
+    depends_on:
+      - loki
+    networks:
+      - monitoring
+
 networks:
   frontend:
   backend:
+  monitoring:
 
 volumes:
   pgdata:
   mongodata:
+  lokidata:
+  grafanadata:

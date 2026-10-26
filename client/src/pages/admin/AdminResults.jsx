@@ -7,7 +7,7 @@ import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import Input from '../../components/ui/Input'
 import Select from '../../components/ui/Select'
 import Spinner from '../../components/ui/Spinner'
-import { useToast } from '../../components/ui/Toast'
+import { useToast } from '../../components/ui/useToast'
 
 const EMPTY_ADD = {
   raceId: '',
@@ -45,10 +45,6 @@ export default function AdminResults() {
   const [confirm, setConfirm] = useState(null)
   const [pending, setPending] = useState(false)
 
-  useEffect(() => {
-    loadBase()
-  }, [])
-
   const loadBase = useCallback(async () => {
     setLoading(true)
     setError('')
@@ -61,6 +57,10 @@ export default function AdminResults() {
     }
     setLoading(false)
   }, [])
+
+  useEffect(() => {
+    loadBase()
+  }, [loadBase])
 
   const loadResults = useCallback(async (id) => {
     if (!id) {

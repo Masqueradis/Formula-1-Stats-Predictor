@@ -3,7 +3,7 @@ import api from '../../api'
 import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
-import { useToast } from '../../components/ui/Toast'
+import { useToast } from '../../components/ui/useToast'
 
 export default function VotersSummary({ doc, user, stats, onChanged }) {
   const toast = useToast()

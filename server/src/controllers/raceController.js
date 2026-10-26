@@ -1,4 +1,5 @@
 const raceService = require('../services/raceService');
+const weatherService = require('../services/weatherService');
 const apiResponse = require('../utils/apiResponse');
 
 async function getAll(req, res) {
@@ -49,4 +50,15 @@ async function remove(req, res) {
   }
 }
 
-module.exports = { getAll, getById, create, update, remove };
+/** Погода на уик-энд ГП (Open-Meteo по координатам трассы) — эпик-09, P2 */
+async function getWeather(req, res) {
+  try {
+    const result = await weatherService.getRaceWeather(req.params.id);
+    if (result.error) return apiResponse.error(res, result.error, result.status || 400);
+    return apiResponse.success(res, result);
+  } catch (err) {
+    return apiResponse.error(res, err.message, err.status || 500);
+  }
+}
+
+module.exports = { getAll, getById, create, update, remove, getWeather };

@@ -1,6 +1,5 @@
-import { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react'
-
-const ToastContext = createContext(null)
+import { useCallback, useMemo, useRef, useState } from 'react'
+import { ToastContext } from './useToast'
 
 const TYPES = {
   success: 'border-emerald-500 text-emerald-600 dark:text-emerald-400',
@@ -64,8 +63,3 @@ export function ToastProvider({ children }) {
   )
 }
 
-export function useToast() {
-  const ctx = useContext(ToastContext)
-  if (!ctx) throw new Error('useToast must be used within ToastProvider')
-  return ctx
-}

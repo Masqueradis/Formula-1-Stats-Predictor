@@ -2,11 +2,11 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import api from '../../api'
 import { getSocket } from '../../socket'
-import { useSocket } from '../../context/SocketContext'
+import { useSocket } from '../../context/useSocket'
 import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
-import { useToast } from '../../components/ui/Toast'
+import { useToast } from '../../components/ui/useToast'
 
 export default function CommentsList({ doc, user, onChanged }) {
   const toast = useToast()

@@ -1,0 +1,39 @@
+# Promtail — сбор stdout ВСЕХ контейнеров docker-compose через docker_sd.
+# backend пишет структурированные JSON-строки (src/utils/logger.js) —
+# level/event вытаскиваются в label'ы для LogQL-фильтров.
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: docker
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+    relabel_configs:
+      # "f1stats-backend" вместо "/f1stats-backend"
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/(.*)'
+        target_label: container
+      # имя сервиса из compose (backend, frontend, postgres, …)
+      - source_labels: ['__meta_docker_container_label_com_docker_compose_service']
+        target_label: service
+    pipeline_stages:
+      - docker: {}
+      # JSON-логи backend: {"level":"info","event":"auth.login",…}
+      - match:
+          selector: '{service="backend"}'
+          stages:
+            - json:
+                expressions:
+                  level: level
+                  event: event
+            - labels:
+                level:
+                event:
