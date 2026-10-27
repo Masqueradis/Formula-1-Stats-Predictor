@@ -7,7 +7,7 @@ import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import Input from '../../components/ui/Input'
 import Select from '../../components/ui/Select'
 import Spinner from '../../components/ui/Spinner'
-import { useToast } from '../../components/ui/Toast'
+import { useToast } from '../../components/ui/useToast'
 
 const EMPTY_ADD = {
   raceId: '',
@@ -34,6 +34,8 @@ export default function AdminResults() {
   const toast = useToast()
   const [drivers, setDrivers] = useState([])
   const [races, setRaces] = useState([])
+  const [seasons, setSeasons] = useState([])
+  const [seasonFilter, setSeasonFilter] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [driverId, setDriverId] = useState('')
@@ -46,14 +48,30 @@ export default function AdminResults() {
   const [pending, setPending] = useState(false)
 
   useEffect(() => {
-    loadBase()
+    let cancelled = false
+    api.get('/history/seasons')
+      .then(({ data }) => {
+        if (cancelled) return
+        const list = data.data || []
+        setSeasons(list)
+        setSeasonFilter(String(list[0]?.season ?? new Date().getFullYear()))
+      })
+      .catch(() => {
+        if (cancelled) return
+        setSeasons([])
+        setSeasonFilter(String(new Date().getFullYear()))
+      })
+    return () => { cancelled = true }
   }, [])
 
-  const loadBase = useCallback(async () => {
+  const loadBase = useCallback(async (season) => {
     setLoading(true)
     setError('')
     try {
-      const [dRes, rRes] = await Promise.all([api.get('/drivers'), api.get('/races')])
+      const [dRes, rRes] = await Promise.all([
+        api.get('/drivers'),
+        api.get('/races', { params: { season } }),
+      ])
       setDrivers(dRes.data.data || [])
       setRaces(sortRaces(rRes.data.data || []))
     } catch {
@@ -62,14 +80,27 @@ export default function AdminResults() {
     setLoading(false)
   }, [])
 
-  const loadResults = useCallback(async (id) => {
+  useEffect(() => {
+    if (seasonFilter) loadBase(seasonFilter)
+  }, [seasonFilter, loadBase])
+
+  useEffect(() => {
+    if (!addForm.raceId) return
+    if (!races.some(race => String(race.id) === String(addForm.raceId))) {
+      setAddForm(prev => ({ ...prev, raceId: '' }))
+    }
+  }, [races, addForm.raceId])
+
+  const loadResults = useCallback(async (id, season) => {
     if (!id) {
       setResults([])
       return
     }
     setLoadingResults(true)
     try {
-      const { data } = await api.get('/race-results', { params: { driverId: id } })
+      const { data } = await api.get('/race-results', {
+        params: { driverId: id, ...(season ? { season } : {}) },
+      })
       setResults(data.data || [])
     } catch {
       setResults([])
@@ -79,8 +110,8 @@ export default function AdminResults() {
   }, [toast])
 
   useEffect(() => {
-    loadResults(driverId)
-  }, [driverId, loadResults])
+    loadResults(driverId, seasonFilter)
+  }, [driverId, seasonFilter, loadResults])
 
   const selectedDriver = useMemo(
     () => drivers.find(d => String(d.id) === String(driverId)) || null,
@@ -115,7 +146,7 @@ export default function AdminResults() {
       })
       toast.success('Результат добавлен')
       setAddForm(EMPTY_ADD)
-      await loadResults(driverId)
+      await loadResults(driverId, seasonFilter)
     } catch (err) {
       toast.error(err.response?.data?.error || 'Не удалось добавить результат')
     }
@@ -150,7 +181,7 @@ export default function AdminResults() {
       })
       toast.success('Результат обновлён')
       setEditingId(null)
-      await loadResults(driverId)
+      await loadResults(driverId, seasonFilter)
     } catch (err) {
       toast.error(err.response?.data?.error || 'Не удалось обновить результат')
     }
@@ -162,7 +193,7 @@ export default function AdminResults() {
     try {
       await api.delete(`/race-results/${id}`)
       toast.success('Результат удалён')
-      await loadResults(driverId)
+      await loadResults(driverId, seasonFilter)
     } catch (err) {
       toast.error(err.response?.data?.error || 'Не удалось удалить результат')
     }
@@ -192,7 +223,7 @@ export default function AdminResults() {
     return (
       <Card className="p-8 text-center">
         <p className="mb-4 text-sm font-medium text-red-500">{error}</p>
-        <Button onClick={loadBase}>Повторить</Button>
+        <Button onClick={() => loadBase(seasonFilter)}>Повторить</Button>
       </Card>
     )
   }
@@ -205,7 +236,12 @@ export default function AdminResults() {
       </Card>
 
       <Card className="p-5">
-        <div className="grid gap-3 sm:grid-cols-[280px_1fr] sm:items-end">
+        <div className="grid gap-3 sm:grid-cols-[180px_280px_1fr] sm:items-end">
+          <Select label="Сезон" value={seasonFilter} onChange={e => setSeasonFilter(e.target.value)}>
+            {seasons.map(s => (
+              <option key={s} value={String(s)}>{s}</option>
+            ))}
+          </Select>
           <Select label="Пилот" value={driverId} onChange={e => setDriverId(e.target.value)}>
             <option value="">— выберите пилота —</option>
             {drivers.map(d => (

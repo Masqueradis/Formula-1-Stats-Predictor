@@ -11,22 +11,36 @@ function sanitizeRace(race) {
   const json = typeof race.toJSON === 'function' ? race.toJSON() : race;
   const { results, ...rest } = json;
   const raceOnly = (results || []).filter(
-    (r) => (r.sessionType || 'race') === 'race' && !(r.driver && r.driver.isActive === false),
+    (r) => (r.sessionType || 'race') === 'race' && r.position != null,
   );
-  const sorted = [...raceOnly].sort((a, b) => (a.position || 0) - (b.position || 0));
-  const winner = sorted.find((r) => r.position === 1) || null;
+  const sorted = [...raceOnly].sort((a, b) => Number(a.position) - Number(b.position));
   const topThree = sorted.slice(0, 3).map((r) => {
     const driver = r.driver || {};
+    const team = r.team || {};
     return {
       position: r.position,
       driver: { id: driver.id, firstName: driver.firstName, lastName: driver.lastName, abbreviation: driver.abbreviation },
+      team: team.id ? { id: team.id, name: team.name, color: team.color || null } : null,
     };
   });
-  return { ...rest, winner: winner && winner.driver ? topThree[0].driver : null, results: topThree };
+  return { ...rest, winner: topThree[0]?.driver || null, results: topThree };
 }
 
-async function getAll() {
-  const races = await raceRepository.findAllWithResults();
+function normalizeSeasonFilter(rawSeason) {
+  if (rawSeason === undefined || rawSeason === null || rawSeason === '' || rawSeason === 'all') {
+    return undefined;
+  }
+  if (rawSeason === 'current') return 'current';
+  const season = Number(rawSeason);
+  if (!Number.isInteger(season) || season < 1950) {
+    throw httpError(400, 'season must be a valid year or "current"');
+  }
+  return season;
+}
+
+async function getAll({ season } = {}) {
+  const filter = normalizeSeasonFilter(season);
+  const races = await raceRepository.findAllWithResults({ season: filter });
   return races.map(sanitizeRace);
 }
 

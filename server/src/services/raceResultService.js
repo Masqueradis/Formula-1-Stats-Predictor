@@ -76,8 +76,16 @@ async function recomputePodiums(driverId) {
   await Driver.update({ podiums }, { where: { id: driverId } });
 }
 
-async function getAll({ driverId, raceId } = {}) {
-  return raceResultRepository.findAllWithOptions({ driverId, raceId });
+async function getAll({ driverId, raceId, season } = {}) {
+  let normalizedSeason;
+  if (season !== undefined && season !== null && season !== '') {
+    const parsed = Number(season);
+    if (!Number.isInteger(parsed) || parsed < 1950) {
+      throw badRequest('season must be a valid year');
+    }
+    normalizedSeason = parsed;
+  }
+  return raceResultRepository.findAllWithOptions({ driverId, raceId, season: normalizedSeason });
 }
 
 async function getById(rawId) {

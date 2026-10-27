@@ -1,5 +1,6 @@
 import useDocumentTitle from '../hooks/useDocumentTitle'
 import { useCallback, useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import api from '../api'
 import Card from '../components/ui/Card'
 import Spinner from '../components/ui/Spinner'
@@ -27,10 +28,9 @@ export default function CalendarPage() {
     setIsLoading(true)
     setIsError(false)
     try {
-      const { data } = await api.get('/races')
-      const sorted = [...(data.data || [])].sort(
-        (a, b) => (a.season - b.season) || (a.round - b.round),
-      )
+      // Календарь — только текущий сезон; прошлые сезоны живут в «Истории».
+      const { data } = await api.get('/races', { params: { season: 'current' } })
+      const sorted = [...(data.data || [])].sort((a, b) => a.round - b.round)
       setRaces(sorted)
     } catch {
       setIsError(true)
@@ -60,7 +60,20 @@ export default function CalendarPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-foreground dark:text-foreground-dark">Календарь Гран-при</h1>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground dark:text-foreground-dark">Календарь Гран-при</h1>
+          <p className="mt-1 text-sm text-muted dark:text-muted-dark">
+            Текущий сезон{races[0]?.season ? ` ${races[0].season}` : ''}. Прошлые сезоны — в разделе «История».
+          </p>
+        </div>
+        <Link
+          to="/history"
+          className="rounded-lg border border-border-soft px-3 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-background dark:border-border-dark dark:text-foreground-dark dark:hover:bg-background-dark"
+        >
+          История Гран-при →
+        </Link>
+      </div>
 
       {races.length === 0 ? (
         <Card className="border-dashed p-8 text-center text-muted dark:text-muted-dark">Нет гонок</Card>

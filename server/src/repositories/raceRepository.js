@@ -3,10 +3,23 @@ const { buildCrudRepository } = require('./crudRepository');
 
 const base = buildCrudRepository(Race);
 
-const RESULT_INCLUDES = [{ model: RaceResult, as: 'results', include: [{ association: 'driver' }] }];
+const RESULT_INCLUDES = [
+  {
+    model: RaceResult,
+    as: 'results',
+    include: [{ association: 'driver' }, { association: 'team' }],
+  },
+];
 
-async function findAllWithResults() {
+async function findAllWithResults({ season } = {}) {
+  const where = {};
+  if (season === 'current') {
+    where.season = await Race.max('season');
+  } else if (Number.isInteger(season)) {
+    where.season = season;
+  }
   return Race.findAll({
+    where,
     include: RESULT_INCLUDES,
     order: [
       ['season', 'ASC'],

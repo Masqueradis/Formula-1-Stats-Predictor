@@ -35,6 +35,23 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.INTEGER,
       allowNull: true,
     },
+    // Эпик-10: детали исторической классификации
+    positionText: {
+      type: DataTypes.STRING(10),
+      allowNull: true,
+    },
+    status: {
+      type: DataTypes.STRING(50),
+      allowNull: true,
+    },
+    time: {
+      type: DataTypes.STRING(50),
+      allowNull: true,
+    },
+    laps: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
     points: {
       type: DataTypes.DECIMAL(4, 1),
       allowNull: true,

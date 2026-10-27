@@ -26,7 +26,7 @@ export default function DriverCard({ driver }) {
             {driver.firstName} {driver.lastName}
           </h3>
           <p className="mt-0.5 text-sm text-muted dark:text-muted-dark">
-            {driver.nationality} · №{driver.number} · подиумы: {driver.podiums || 0}
+            {driver.nationality}{driver.number > 0 ? ` · №${driver.number}` : ''} · подиумы: {driver.podiums || 0}
           </p>
 
           <div className="mt-3 flex min-w-0 items-center gap-2">

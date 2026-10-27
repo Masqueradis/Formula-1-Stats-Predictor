@@ -175,3 +175,22 @@ POST http://localhost:3000/api/drivers
 Content-Type: application/json
 
 {bad json
+### ---------- История Гран-при (эпик-10) ----------
+
+### Сезоны истории (2000–2026, по убыванию) → 200
+GET http://localhost:3000/api/history/seasons
+
+### Гонки выбранного сезона (победитель + подиум) → 200
+GET http://localhost:3000/api/history/races?season=2025
+
+### Полная классификация гонки + спринт → 200
+GET http://localhost:3000/api/history/races/1
+
+### Исторический зачёт пилотов → 200
+GET http://localhost:3000/api/standings?season=2005&type=drivers
+
+### Исторический кубок конструкторов → 200
+GET http://localhost:3000/api/standings?season=2005&type=constructors
+
+### Текущий календарь без истории → 200
+GET http://localhost:3000/api/races?season=current

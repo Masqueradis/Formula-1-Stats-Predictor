@@ -1,25 +1,34 @@
+import { lazy, Suspense } from 'react'
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import { RequireAuth, RequireAdmin, RequireGuest } from './components/RequireAuth'
 import AppLayout from './layout/AppLayout'
+import Spinner from './components/ui/Spinner'
 import DashboardPage from './pages/DashboardPage'
-import PilotsPage from './pages/PilotsPage'
-import DriverDetailPage from './pages/DriverDetailPage'
-import TeamsPage from './pages/TeamsPage'
-import TeamDetailPage from './pages/TeamDetailPage'
-import CalendarPage from './pages/CalendarPage'
-import StandingsPage from './pages/StandingsPage'
-import PredictionsPage from './pages/PredictionsPage'
-import VotePage from './pages/VotePage'
-import LoginPage from './pages/LoginPage'
-import RegisterPage from './pages/RegisterPage'
-import VerifyPage from './pages/VerifyPage'
-import CabinetPage from './pages/CabinetPage'
-import AdminLayout from './pages/admin/AdminLayout'
-import AdminDrivers from './pages/admin/AdminDrivers'
-import AdminTeams from './pages/admin/AdminTeams'
-import AdminResults from './pages/admin/AdminResults'
-import AdminUsers from './pages/admin/AdminUsers'
-import AdminSync from './pages/admin/AdminSync'
+
+// Code-splitting (эпик-09): каждая страница — отдельный чанк, подтягивается при навигации.
+// Dashboard (landing) остаётся в основном чанке — чтобы не было водопада на первом экране.
+const PilotsPage = lazy(() => import('./pages/PilotsPage'))
+const DriverDetailPage = lazy(() => import('./pages/DriverDetailPage'))
+const TeamsPage = lazy(() => import('./pages/TeamsPage'))
+const TeamDetailPage = lazy(() => import('./pages/TeamDetailPage'))
+const CalendarPage = lazy(() => import('./pages/CalendarPage'))
+const HistoryPage = lazy(() => import('./pages/HistoryPage'))
+const HistoryRacePage = lazy(() => import('./pages/HistoryRacePage'))
+const StandingsPage = lazy(() => import('./pages/StandingsPage'))
+const PredictionsPage = lazy(() => import('./pages/PredictionsPage'))
+const VotePage = lazy(() => import('./pages/VotePage'))
+const LeaderboardPage = lazy(() => import('./pages/LeaderboardPage'))
+const LoginPage = lazy(() => import('./pages/LoginPage'))
+const RegisterPage = lazy(() => import('./pages/RegisterPage'))
+const VerifyPage = lazy(() => import('./pages/VerifyPage'))
+const CabinetPage = lazy(() => import('./pages/CabinetPage'))
+const AdminLayout = lazy(() => import('./pages/admin/AdminLayout'))
+const AdminDrivers = lazy(() => import('./pages/admin/AdminDrivers'))
+const AdminTeams = lazy(() => import('./pages/admin/AdminTeams'))
+const AdminRaces = lazy(() => import('./pages/admin/AdminRaces'))
+const AdminResults = lazy(() => import('./pages/admin/AdminResults'))
+const AdminUsers = lazy(() => import('./pages/admin/AdminUsers'))
+const AdminSync = lazy(() => import('./pages/admin/AdminSync'))
 
 const router = createBrowserRouter([
   {
@@ -32,9 +41,12 @@ const router = createBrowserRouter([
       { path: 'teams', element: <TeamsPage /> },
       { path: 'teams/:id', element: <TeamDetailPage /> },
       { path: 'calendar', element: <CalendarPage /> },
+      { path: 'history', element: <HistoryPage /> },
+      { path: 'history/races/:raceId', element: <HistoryRacePage /> },
       { path: 'standings', element: <StandingsPage /> },
       { path: 'predictions', element: <PredictionsPage /> },
       { path: 'vote', element: <VotePage /> },
+      { path: 'leaderboard', element: <LeaderboardPage /> },
 
       {
         element: <RequireGuest />,
@@ -66,6 +78,7 @@ const router = createBrowserRouter([
               { index: true, element: <AdminDrivers /> },
               { path: 'drivers', element: <AdminDrivers /> },
               { path: 'teams', element: <AdminTeams /> },
+              { path: 'races', element: <AdminRaces /> },
               { path: 'results', element: <AdminResults /> },
               { path: 'users', element: <AdminUsers /> },
               { path: 'sync', element: <AdminSync /> },
@@ -78,5 +91,15 @@ const router = createBrowserRouter([
 ])
 
 export default function App() {
-  return <RouterProvider router={router} />
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center">
+          <Spinner label="Загрузка…" />
+        </div>
+      }
+    >
+      <RouterProvider router={router} />
+    </Suspense>
+  )
 }

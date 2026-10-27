@@ -25,7 +25,7 @@ function sanitizeTeam(team) {
     .slice()
     .sort((a, b) => (a.id || 0) - (b.id || 0))
     .map((st) => st.driver)
-    .filter((d) => d && d.isActive !== false)
+    .filter(Boolean)
     .map((d) => ({
       id: d.id,
       firstName: d.firstName,
@@ -47,11 +47,23 @@ async function getAll({ includeInactive } = {}) {
   return teams.map(sanitizeTeam);
 }
 
-async function getById(rawId) {
+async function getById(rawId, { season: rawSeason } = {}) {
   const id = parseId(rawId);
   if (id === null) return { error: 'Invalid id' };
-  const season = await currentSeason();
-  const team = await teamRepository.findByIdWithDetails(id, season);
+
+  let season = await currentSeason();
+  let includeInactive = false;
+  if (rawSeason !== undefined && rawSeason !== null && rawSeason !== '') {
+    const parsed = Number(rawSeason);
+    if (!Number.isInteger(parsed) || parsed < 1950) {
+      return { error: 'Invalid season', status: 400 };
+    }
+    season = parsed;
+    // История: команда могла быть архивирована, но её карточка нужна.
+    includeInactive = true;
+  }
+
+  const team = await teamRepository.findByIdWithDetails(id, season, { includeInactive });
   if (!team) return { error: 'team not found', status: 404 };
   return sanitizeTeam(team);
 }

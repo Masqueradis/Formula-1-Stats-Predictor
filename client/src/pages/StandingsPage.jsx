@@ -39,6 +39,8 @@ export default function StandingsPage() {
   const { subscribe } = useSocket()
   const [searchParams, setSearchParams] = useSearchParams()
   const type = searchParams.get('type') === 'constructors' ? 'constructors' : 'drivers'
+  const season = searchParams.get('season') || ''
+  const [seasons, setSeasons] = useState([])
   const [data, setData] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isError, setIsError] = useState(false)
@@ -49,16 +51,29 @@ export default function StandingsPage() {
     if (!silent) setIsLoading(true)
     setIsError(false)
     try {
-      const res = await api.get('/standings', { params: { type } })
+      const res = await api.get('/standings', {
+        params: { type, ...(season ? { season } : {}) },
+      })
       setData(res.data.data)
     } catch {
       if (!silent) setIsError(true)
     } finally {
       if (!silent) setIsLoading(false)
     }
-  }, [type])
+  }, [type, season])
 
   useEffect(() => { load() }, [load])
+
+  // Список сезонов для исторических таблиц; ошибка не мешает текущей таблице.
+  useEffect(() => {
+    let cancelled = false
+    api.get('/history/seasons')
+      .then(({ data: response }) => {
+        if (!cancelled) setSeasons(response.data || [])
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [])
 
   // Live-обновление таблицы (лаба 7): событие standings:update → тихий refetch без спиннера
   useEffect(() => {
@@ -98,8 +113,17 @@ export default function StandingsPage() {
 
   const setType = (next) => {
     setSort({ key: 'points', dir: 'desc' })
-    if (next === 'constructors') setSearchParams({ type: 'constructors' })
-    else setSearchParams({})
+    const params = new URLSearchParams(searchParams)
+    if (next === 'constructors') params.set('type', 'constructors')
+    else params.delete('type')
+    setSearchParams(params)
+  }
+
+  const setSeason = (event) => {
+    const next = new URLSearchParams(searchParams)
+    if (event.target.value) next.set('season', event.target.value)
+    else next.delete('season')
+    setSearchParams(next)
   }
 
   if (isLoading) return <Spinner label="Загрузка таблицы…" />
@@ -143,13 +167,39 @@ export default function StandingsPage() {
         </p>
       </div>
 
-      <div className="flex items-center gap-2">
-        <button type="button" onClick={() => setType('drivers')} className={tabClass(type === 'drivers')}>
-          Личный зачёт
-        </button>
-        <button type="button" onClick={() => setType('constructors')} className={tabClass(type === 'constructors')}>
-          Кубок конструкторов
-        </button>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={() => setType('drivers')} className={tabClass(type === 'drivers')}>
+            Личный зачёт
+          </button>
+          <button type="button" onClick={() => setType('constructors')} className={tabClass(type === 'constructors')}>
+            Кубок конструкторов
+          </button>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          {seasons.length > 0 && (
+            <label className="flex items-center gap-2 text-sm text-muted dark:text-muted-dark">
+              Сезон
+              <select
+                value={season || (data?.season ? String(data.season) : '')}
+                onChange={setSeason}
+                className="rounded-lg border border-border-soft bg-card px-3 py-2 text-sm font-semibold text-foreground outline-none transition-colors focus:border-primary dark:border-border-dark dark:bg-card-dark dark:text-foreground-dark dark:focus:border-accent"
+              >
+                {seasons.map((item) => (
+                  <option key={item.season} value={item.season}>{item.season}</option>
+                ))}
+              </select>
+            </label>
+          )}
+          {season && (
+            <Link
+              to={`/history?season=${season}`}
+              className="rounded-lg border border-border-soft px-3 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-background dark:border-border-dark dark:text-foreground-dark dark:hover:bg-background-dark"
+            >
+              Гонки сезона →
+            </Link>
+          )}
+        </div>
       </div>
 
       <Card className="overflow-hidden">
@@ -184,7 +234,7 @@ export default function StandingsPage() {
                   ) : (
                     <td className="px-4 py-3">
                       <Link
-                        to={`/teams/${row.id}`}
+                        to={`/teams/${row.id}?season=${data.season}`}
                         className="inline-flex items-center gap-2 font-semibold text-foreground hover:text-primary dark:text-foreground-dark dark:hover:text-accent"
                       >
                         <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: row.color || '#0ea5e9' }} aria-hidden />
@@ -196,7 +246,7 @@ export default function StandingsPage() {
                     <td className="px-4 py-3">
                       {row.team ? (
                         <Link
-                          to={`/teams/${row.team.id}`}
+                          to={`/teams/${row.team.id}?season=${data.season}`}
                           className="inline-flex items-center gap-2 text-muted hover:text-primary dark:text-muted-dark dark:hover:text-accent"
                         >
                           <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: row.team.color || '#0ea5e9' }} aria-hidden />

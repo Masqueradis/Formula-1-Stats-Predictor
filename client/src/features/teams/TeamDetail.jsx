@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import api from '../../api'
 import Card from '../../components/ui/Card'
 import Spinner from '../../components/ui/Spinner'
@@ -9,6 +9,8 @@ import useDocumentTitle from '../../hooks/useDocumentTitle'
 
 export default function TeamDetail() {
   const { id } = useParams()
+  const [searchParams] = useSearchParams()
+  const season = searchParams.get('season') || ''
   const [team, setTeam] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isError, setIsError] = useState(false)
@@ -18,14 +20,14 @@ export default function TeamDetail() {
     setIsLoading(true)
     setIsError(false)
     try {
-      const { data } = await api.get(`/teams/${id}`)
+      const { data } = await api.get(`/teams/${id}`, { params: season ? { season } : {} })
       setTeam(data.data)
     } catch {
       setIsError(true)
     } finally {
       setIsLoading(false)
     }
-  }, [id])
+  }, [id, season])
 
   useEffect(() => { load() }, [load])
 
@@ -48,8 +50,11 @@ export default function TeamDetail() {
 
   return (
     <div className="space-y-6">
-      <Link to="/teams" className="inline-block text-sm font-medium text-muted hover:text-primary dark:text-muted-dark dark:hover:text-accent">
-        ← Все команды
+      <Link
+        to={season ? `/history?season=${season}` : '/teams'}
+        className="inline-block text-sm font-medium text-muted hover:text-primary dark:text-muted-dark dark:hover:text-accent"
+      >
+        {season ? `← История сезона ${season}` : '← Все команды'}
       </Link>
 
       <Card className="overflow-hidden">
@@ -111,7 +116,7 @@ export default function TeamDetail() {
                 <span className="font-semibold text-foreground dark:text-foreground-dark">
                   {driver.firstName} {driver.lastName}
                 </span>
-                {driver.number != null && (
+                {driver.number > 0 && (
                   <span className="ml-auto text-sm text-muted dark:text-muted-dark">№{driver.number}</span>
                 )}
               </Link>

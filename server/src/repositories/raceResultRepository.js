@@ -9,14 +9,20 @@ const INCLUDES = [
   { model: Team, as: 'team' },
 ];
 
-async function findAllWithOptions({ driverId, raceId } = {}) {
+async function findAllWithOptions({ driverId, raceId, season } = {}) {
   const where = {};
   if (driverId) where.driverId = Number(driverId);
   if (raceId) where.raceId = Number(raceId);
+  if (season) where['$race.season$'] = Number(season);
+
+  // Для фильтра по сезону include гонки должен быть INNER JOIN.
+  const includes = season
+    ? INCLUDES.map((include) => (include.as === 'race' ? { ...include, required: true } : include))
+    : INCLUDES;
 
   return RaceResult.findAll({
     where,
-    include: INCLUDES,
+    include: includes,
     order: [['position', 'ASC'], ['id', 'ASC']],
   });
 }

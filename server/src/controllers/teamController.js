@@ -12,7 +12,7 @@ async function getAll(req, res) {
 
 async function getById(req, res) {
   try {
-    const result = await teamService.getById(req.params.id);
+    const result = await teamService.getById(req.params.id, { season: req.query.season });
     if (result.error) return apiResponse.error(res, result.error, result.status || 400);
     return apiResponse.success(res, result);
   } catch (err) {

@@ -9,17 +9,21 @@ function sanitizeDriver(record) {
   const { seasonTeams, ...rest } = json;
 
   let team = null;
+  let teamSeason = null;
   if (Array.isArray(seasonTeams) && seasonTeams.length) {
-    team = seasonTeams[seasonTeams.length - 1].team || null;
+    const latest = seasonTeams[seasonTeams.length - 1];
+    team = latest.team || null;
+    teamSeason = latest.season ?? null;
   } else if (seasonTeams && seasonTeams.team) {
     team = seasonTeams.team;
+    teamSeason = seasonTeams.season ?? null;
   }
 
   if (team) {
     team = { id: team.id, name: team.name, color: team.color };
   }
 
-  return { ...rest, team };
+  return { ...rest, team, teamSeason };
 }
 
 function clean(record) {
@@ -66,7 +70,8 @@ async function getAll({ search, teamId, includeInactive } = {}) {
 async function getById(rawId) {
   const id = parseId(rawId);
   if (id === null) return { error: 'Invalid id' };
-  const record = await driverRepository.findByIdWithDetails(id);
+  // История: карточка архивного пилота должна открываться из /history.
+  const record = await driverRepository.findByIdWithDetails(id, { includeInactive: true });
   if (!record) return { error: 'driver not found', status: 404 };
   return sanitizeDriver(record);
 }
