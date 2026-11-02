@@ -53,6 +53,23 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false,
       defaultValue: 'race',
     },
+    // Эпик-10: детали исторической классификации (Jolpica отдаёт их не всегда)
+    positionText: {
+      type: DataTypes.STRING(10),
+      allowNull: true,
+    },
+    status: {
+      type: DataTypes.STRING(50),
+      allowNull: true,
+    },
+    time: {
+      type: DataTypes.STRING(20),
+      allowNull: true,
+    },
+    laps: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
   }, {
     sequelize,
     modelName: 'RaceResult',

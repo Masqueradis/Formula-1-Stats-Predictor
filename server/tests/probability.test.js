@@ -5,7 +5,14 @@
  * Формула: S_i = w1·P_qual + w2·F_driver + w3·F_team + w4·H_track, P(i) = e^{S_i}/Σe^{S_j}.
  */
 
-const { softmax, positionScore, average, WEIGHTS } = require('../src/services/probabilityService');
+const {
+  softmax,
+  positionScore,
+  average,
+  blendAverage,
+  formSourceFor,
+  WEIGHTS,
+} = require('../src/services/probabilityService');
 
 describe('WEIGHTS (веса формулы)', () => {
   test('сумма весов равна 1', () => {
@@ -80,5 +87,56 @@ describe('average (нейтральный приор для пустых дан�
 
   test('среднее арифметическое', () => {
     expect(average([1, 0.5])).toBeCloseTo(0.75, 10);
+  });
+});
+
+describe('blendAverage (прошлый сезон в формуле, эпик-10)', () => {
+  test('нет данных ни там, ни там → нейтральный приор', () => {
+    expect(blendAverage(null, null, 1)).toEqual({ value: 0.5, source: 'neutral' });
+  });
+
+  test('только текущий сезон → source=current', () => {
+    expect(blendAverage(0.8, null, 0.4)).toEqual({ value: 0.8, source: 'current' });
+  });
+
+  test('только прошлый сезон → source=previous', () => {
+    expect(blendAverage(null, 0.4, 0)).toEqual({ value: 0.4, source: 'previous' });
+  });
+
+  test('вес 1 → прошлый сезон не влияет', () => {
+    expect(blendAverage(0.8, 0.2, 1)).toEqual({ value: 0.8, source: 'current' });
+  });
+
+  test('вес 0 → только прошлый сезон', () => {
+    expect(blendAverage(0.8, 0.2, 0)).toEqual({ value: 0.2, source: 'previous' });
+  });
+
+  test('промежуточный вес → взвешенное среднее', () => {
+    const result = blendAverage(0.8, 0.2, 0.25);
+    expect(result.value).toBeCloseTo(0.35, 10);
+    expect(result.source).toBe('blended');
+  });
+
+  test('вес вне [0;1] обрезается', () => {
+    expect(blendAverage(0.9, 0.1, 5).value).toBeCloseTo(0.9, 10);
+    expect(blendAverage(0.9, 0.1, -3).value).toBeCloseTo(0.1, 10);
+  });
+});
+
+describe('formSourceFor', () => {
+  test('есть оба сезона → blended', () => {
+    expect(formSourceFor(3, 5)).toBe('blended');
+  });
+
+  test('только текущий → current', () => {
+    expect(formSourceFor(5, 0)).toBe('current');
+  });
+
+  test('только прошлый → previous', () => {
+    expect(formSourceFor(0, 5)).toBe('previous');
+  });
+
+  test('нет данных → neutral', () => {
+    expect(formSourceFor(0, 0)).toBe('neutral');
   });
 });

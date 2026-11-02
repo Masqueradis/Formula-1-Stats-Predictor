@@ -1,9 +1,11 @@
 'use strict';
 
+const { Op } = require('sequelize');
+
 /**
  * In-memory фейк sequelize-модели для юнит-тестов sync-сервисов:
  * поддерживает ровно те операции, которые используются в f1SyncService
- * (findOne/create/update/destroy/bulkCreate/findOrCreate).
+ * (findOne/create/update/destroy/bulkCreate/findOrCreate/max).
  */
 function createFakeModel(initialRows = []) {
   const rows = [];
@@ -20,7 +22,13 @@ function createFakeModel(initialRows = []) {
   }
 
   function matches(row, where = {}) {
-    return Object.entries(where).every(([k, v]) => row[k] === v);
+    return Object.entries(where).every(([k, v]) => {
+      // Sequelize-оператор Op.in: { id: { [Op.in]: [1, 2] } }
+      if (v && typeof v === 'object' && Array.isArray(v[Op.in])) {
+        return v[Op.in].includes(row[k]);
+      }
+      return row[k] === v;
+    });
   }
 
   const model = {
@@ -28,6 +36,9 @@ function createFakeModel(initialRows = []) {
     async findOne({ where } = {}) {
       const row = rows.find((r) => matches(r, where));
       return row ? attach(row) : null;
+    },
+    async findAll({ where } = {}) {
+      return rows.filter((r) => matches(r, where)).map(attach);
     },
     async create(values) {
       const row = attach({ id: nextId++, ...values });
@@ -58,6 +69,10 @@ function createFakeModel(initialRows = []) {
       const row = rows.find((r) => matches(r, where));
       if (row) return [attach(row), false];
       return [await model.create(defaults || where), true];
+    },
+    async max(field) {
+      const values = rows.map((r) => r[field]).filter((v) => v != null);
+      return values.length ? Math.max(...values) : null;
     },
   };
 

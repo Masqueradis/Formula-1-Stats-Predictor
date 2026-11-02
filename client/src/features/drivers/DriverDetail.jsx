@@ -112,12 +112,13 @@ export default function DriverDetail() {
               {driver.firstName} {driver.lastName}
             </h1>
             <p className="mt-1 text-muted dark:text-muted-dark">
-              {driver.nationality} · №{driver.number}
+              {driver.nationality}
+              {driver.number ? ` · №${driver.number}` : ''}
             </p>
 
             {driver.team && (
               <Link
-                to={`/teams/${driver.team.id}`}
+                to={`/teams/${driver.team.id}${driver.teamSeason ? `?season=${driver.teamSeason}` : ''}`}
                 className="mt-4 inline-flex items-center gap-2 rounded-lg border border-border-soft px-3 py-1.5 text-sm font-semibold text-foreground transition-colors hover:bg-background dark:border-border-dark dark:text-foreground-dark dark:hover:bg-background-dark"
               >
                 <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: color }} />
@@ -135,7 +136,7 @@ export default function DriverDetail() {
         <dl className="grid gap-4 text-sm sm:grid-cols-3">
           <div>
             <dt className="text-muted dark:text-muted-dark">Номер болида</dt>
-            <dd className="mt-1 text-2xl font-bold text-foreground dark:text-foreground-dark">{driver.number}</dd>
+            <dd className="mt-1 text-2xl font-bold text-foreground dark:text-foreground-dark">{driver.number || '—'}</dd>
           </div>
           <div>
             <dt className="text-muted dark:text-muted-dark">Подиумы</dt>

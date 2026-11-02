@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import api from '../../api'
 import Card from '../../components/ui/Card'
 import Spinner from '../../components/ui/Spinner'
@@ -9,6 +9,9 @@ import useDocumentTitle from '../../hooks/useDocumentTitle'
 
 export default function TeamDetail() {
   const { id } = useParams()
+  const [searchParams] = useSearchParams()
+  // Эпик-10: состав команды зависит от сезона (?season=YYYY)
+  const season = searchParams.get('season')
   const [team, setTeam] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isError, setIsError] = useState(false)
@@ -18,14 +21,16 @@ export default function TeamDetail() {
     setIsLoading(true)
     setIsError(false)
     try {
-      const { data } = await api.get(`/teams/${id}`)
+      const { data } = await api.get(`/teams/${id}`, {
+        params: season ? { season } : undefined,
+      })
       setTeam(data.data)
     } catch {
       setIsError(true)
     } finally {
       setIsLoading(false)
     }
-  }, [id])
+  }, [id, season])
 
   useEffect(() => { load() }, [load])
 
@@ -93,7 +98,11 @@ export default function TeamDetail() {
 
       <Card className="p-6 sm:p-8">
         <h2 className="mb-4 text-lg font-bold text-foreground dark:text-foreground-dark">
-          Состав <span className="text-sm font-normal text-muted dark:text-muted-dark">({drivers.length})</span>
+          Состав{' '}
+          {team.season && (
+            <span className="text-sm font-normal text-muted dark:text-muted-dark">· сезон {team.season}</span>
+          )}{' '}
+          <span className="text-sm font-normal text-muted dark:text-muted-dark">({drivers.length})</span>
         </h2>
         {drivers.length === 0 ? (
           <p className="text-sm text-muted dark:text-muted-dark">Нет данных о пилотах</p>
@@ -111,9 +120,9 @@ export default function TeamDetail() {
                 <span className="font-semibold text-foreground dark:text-foreground-dark">
                   {driver.firstName} {driver.lastName}
                 </span>
-                {driver.number != null && (
+                {driver.number ? (
                   <span className="ml-auto text-sm text-muted dark:text-muted-dark">№{driver.number}</span>
-                )}
+                ) : null}
               </Link>
             ))}
           </div>

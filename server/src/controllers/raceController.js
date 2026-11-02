@@ -4,10 +4,10 @@ const apiResponse = require('../utils/apiResponse');
 
 async function getAll(req, res) {
   try {
-    const data = await raceService.getAll();
+    const data = await raceService.getAll({ season: req.query.season });
     return apiResponse.success(res, data);
   } catch (err) {
-    return apiResponse.error(res, err.message, 500);
+    return apiResponse.error(res, err.message, err.status || 500);
   }
 }
 

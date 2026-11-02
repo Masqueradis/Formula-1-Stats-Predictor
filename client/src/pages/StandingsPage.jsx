@@ -4,6 +4,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import api from '../api'
 import { useSocket } from '../context/useSocket'
 import Card from '../components/ui/Card'
+import Select from '../components/ui/Select'
 import Spinner from '../components/ui/Spinner'
 
 const NUMERIC_KEYS = ['wins', 'podiums', 'points']
@@ -40,24 +41,40 @@ export default function StandingsPage() {
   const { subscribe } = useSocket()
   const [searchParams, setSearchParams] = useSearchParams()
   const type = searchParams.get('type') === 'constructors' ? 'constructors' : 'drivers'
+  // Эпик-10: зачёты можно смотреть за любой сезон (по умолчанию — текущий)
+  const seasonParam = searchParams.get('season')
+  const [seasons, setSeasons] = useState([])
   const [data, setData] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isError, setIsError] = useState(false)
   const [sort, setSort] = useState({ key: 'points', dir: 'desc' })
   const [liveAt, setLiveAt] = useState(0) // момент последнего live-обновления (для бейджа)
 
+  // Список сезонов для селектора (архив 2000–2025 + текущий)
+  useEffect(() => {
+    let cancelled = false
+    api.get('/history/seasons')
+      .then(({ data: payload }) => {
+        if (!cancelled) setSeasons(payload.data || [])
+      })
+      .catch(() => { if (!cancelled) setSeasons([]) })
+    return () => { cancelled = true }
+  }, [])
+
   const load = useCallback(async ({ silent = false } = {}) => {
     if (!silent) setIsLoading(true)
     setIsError(false)
     try {
-      const res = await api.get('/standings', { params: { type } })
+      const params = { type }
+      if (seasonParam) params.season = seasonParam
+      const res = await api.get('/standings', { params })
       setData(res.data.data)
     } catch {
       if (!silent) setIsError(true)
     } finally {
       if (!silent) setIsLoading(false)
     }
-  }, [type])
+  }, [type, seasonParam])
 
   useEffect(() => { load() }, [load])
 
@@ -70,6 +87,16 @@ export default function StandingsPage() {
   }, [subscribe, load])
 
   const standings = data?.standings || EMPTY_STANDINGS
+  const activeSeason = data?.season ?? (seasonParam ? Number(seasonParam) : null)
+
+  const changeSeason = (value) => {
+    const next = new URLSearchParams(searchParams)
+    if (value) next.set('season', value)
+    else next.delete('season')
+    setSearchParams(next)
+    setLiveAt(0)
+  }
+
 
   const rankById = useMemo(() => {
     const map = new Map()
@@ -99,8 +126,10 @@ export default function StandingsPage() {
 
   const setType = (next) => {
     setSort({ key: 'points', dir: 'desc' })
-    if (next === 'constructors') setSearchParams({ type: 'constructors' })
-    else setSearchParams({})
+    const params = new URLSearchParams(searchParams)
+    if (next === 'constructors') params.set('type', 'constructors')
+    else params.delete('type')
+    setSearchParams(params)
   }
 
   if (isLoading) return <Spinner label="Загрузка таблицы…" />
@@ -129,19 +158,44 @@ export default function StandingsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground dark:text-foreground-dark">
-          {type === 'constructors' ? 'Кубок конструкторов' : 'Личный зачёт'}
-        </h1>
-        <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted dark:text-muted-dark">
-          <span>Сезон {data.season}</span>
-          {liveAt > 0 && (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" aria-hidden />
-              обновлено в реальном времени
-            </span>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground dark:text-foreground-dark">
+            {type === 'constructors' ? 'Кубок конструкторов' : 'Личный зачёт'}
+          </h1>
+          <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted dark:text-muted-dark">
+            <span>Сезон {activeSeason ?? '—'}</span>
+            {liveAt > 0 && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" aria-hidden />
+                обновлено в реальном времени
+              </span>
+            )}
+          </p>
+        </div>
+        <div className="flex flex-wrap items-end gap-3">
+          {seasons.length > 0 && (
+            <Select
+              label="Сезон"
+              value={activeSeason ? String(activeSeason) : ''}
+              onChange={(e) => changeSeason(e.target.value)}
+            >
+              {seasons.map((row) => (
+                <option key={row.season} value={String(row.season)}>
+                  {row.season}
+                </option>
+              ))}
+            </Select>
           )}
-        </p>
+          {activeSeason && (
+            <Link
+              to={`/history?season=${activeSeason}`}
+              className="rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-bold text-primary transition-colors hover:bg-primary/20 dark:bg-accent/10 dark:text-accent dark:hover:bg-accent/20"
+            >
+              История сезона →
+            </Link>
+          )}
+        </div>
       </div>
 
       <div className="flex items-center gap-2">
@@ -185,7 +239,7 @@ export default function StandingsPage() {
                   ) : (
                     <td className="px-4 py-3">
                       <Link
-                        to={`/teams/${row.id}`}
+                        to={`/teams/${row.id}${activeSeason ? `?season=${activeSeason}` : ''}`}
                         className="inline-flex items-center gap-2 font-semibold text-foreground hover:text-primary dark:text-foreground-dark dark:hover:text-accent"
                       >
                         <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: row.color || '#0ea5e9' }} aria-hidden />
@@ -197,7 +251,7 @@ export default function StandingsPage() {
                     <td className="px-4 py-3">
                       {row.team ? (
                         <Link
-                          to={`/teams/${row.team.id}`}
+                          to={`/teams/${row.team.id}${activeSeason ? `?season=${activeSeason}` : ''}`}
                           className="inline-flex items-center gap-2 text-muted hover:text-primary dark:text-muted-dark dark:hover:text-accent"
                         >
                           <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: row.team.color || '#0ea5e9' }} aria-hidden />

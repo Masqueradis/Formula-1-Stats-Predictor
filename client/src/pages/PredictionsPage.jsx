@@ -2,14 +2,20 @@ import { useCallback, useEffect, useState } from 'react'
 import useDocumentTitle from '../hooks/useDocumentTitle'
 import api from '../api'
 import Card from '../components/ui/Card'
+import FormulaLabel from '../components/ui/FormulaLabel'
 import Spinner from '../components/ui/Spinner'
 
 const WEIGHT_NOTES = [
-  ['P_qual', 'стартовая позиция (средняя grid за сезон)'],
-  ['F_driver', 'форма пилота (последние 5 гонок)'],
-  ['F_team', 'форма команды (очки в сезоне)'],
-  ['H_track', 'история выступлений на трассе'],
+  ['P', 'qual', 'стартовая позиция (средняя grid за сезон)'],
+  ['F', 'driver', 'форма пилота (последние 5 гонок)'],
+  ['F', 'team', 'форма команды (очки в сезоне)'],
+  ['H', 'track', 'история выступлений на трассе'],
 ]
+
+const FORM_SOURCE_LABELS = {
+  previous: 'прошлый сезон',
+  blended: 'текущий + прошлый',
+}
 
 function formatDate(value) {
   if (!value) return 'дата неизвестна'
@@ -86,17 +92,30 @@ export default function PredictionsPage() {
             <p className="mt-1 text-sm text-muted dark:text-muted-dark">
               {[data.race.circuit, data.race.country].filter(Boolean).join(' · ')}
             </p>
-            <div className="mt-4 rounded-lg bg-background p-4 text-xs font-mono text-muted dark:bg-background-dark dark:text-muted-dark">
-              S_i = {data.weights.P_qual}·P_qual + {data.weights.F_driver}·F_driver +{' '}
-              {data.weights.F_team}·F_team + {data.weights.H_track}·H_track → Softmax
+            <div className="mt-4 rounded-lg bg-background p-4 text-xs text-muted dark:bg-background-dark dark:text-muted-dark">
+              <span className="font-mono">
+                <FormulaLabel base="S" sub="i" /> = {data.weights.P_qual}·<FormulaLabel base="P" sub="qual" /> +{' '}
+                {data.weights.F_driver}·<FormulaLabel base="F" sub="driver" /> +{' '}
+                {data.weights.F_team}·<FormulaLabel base="F" sub="team" /> +{' '}
+                {data.weights.H_track}·<FormulaLabel base="H" sub="track" /> → Softmax
+              </span>
             </div>
             <ul className="mt-2 grid gap-1 text-xs text-muted dark:text-muted-dark sm:grid-cols-2">
-              {WEIGHT_NOTES.map(([key, note]) => (
-                <li key={key}>
-                  <span className="font-semibold text-foreground dark:text-foreground-dark">{key}</span> — {note}
+              {WEIGHT_NOTES.map(([base, sub, note]) => (
+                <li key={`${base}-${sub}`}>
+                  <span className="font-semibold text-foreground dark:text-foreground-dark">
+                    <FormulaLabel base={base} sub={sub} />
+                  </span> — {note}
                 </li>
               ))}
             </ul>
+            {data.basis?.usesPreviousSeason && (
+              <p className="mt-3 rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+                В начале сезона формула подмешивает прошлый сезон {data.basis.previousSeason}:
+                сыграно гонок в текущем сезоне — {data.basis.currentRaces}, в прошлом — {data.basis.previousRaces}.
+                Влияние прошлого сезона исчезает после {data.basis.formWindow} гонок.
+              </p>
+            )}
           </Card>
 
           <Card className="overflow-hidden">
@@ -109,7 +128,7 @@ export default function PredictionsPage() {
               {data.drivers.map((d, index) => (
                 <li
                   key={d.id}
-                  title={`S=${d.score} · P_qual ${d.features.P_qual} · F_driver ${d.features.F_driver} · F_team ${d.features.F_team} · H_track ${d.features.H_track}`}
+                  title={`S=${d.score} · старт ${d.features.P_qual} · форма ${d.features.F_driver} · команда ${d.features.F_team} · трасса ${d.features.H_track}`}
                 >
                   <div className="mb-1 flex items-baseline justify-between gap-3 text-sm">
                     <span className="flex min-w-0 items-baseline gap-2">
@@ -127,6 +146,11 @@ export default function PredictionsPage() {
                       <span className="truncate text-xs text-muted dark:text-muted-dark">
                         {d.team?.name}
                       </span>
+                      {FORM_SOURCE_LABELS[d.formSource] && (
+                        <span className="shrink-0 rounded-full bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-400">
+                          {FORM_SOURCE_LABELS[d.formSource]}
+                        </span>
+                      )}
                     </span>
                     <span className="shrink-0 font-bold tabular-nums text-foreground dark:text-foreground-dark">
                       {d.probability.toFixed(2)}%

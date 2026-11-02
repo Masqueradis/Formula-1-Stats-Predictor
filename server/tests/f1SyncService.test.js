@@ -108,14 +108,15 @@ describe('f1SyncService (мок Jolpica + in-memory модели)', () => {
     expect(raceExternalId(2020, 1)).toBe('2020-1');
   });
 
-  test('syncSeason создаёт команды/пилотов/гонки, считает подиумы и связки', async () => {
+  test('syncSeason создаёт команды/пилотов/гонки, сохраняет полную классификацию', async () => {
     const summary = await syncSeason(SEASON);
 
     expect(jolpica.getJson).toHaveBeenCalledWith(`/${SEASON}/?limit=100`);
     expect(jolpica.getJson).toHaveBeenCalledWith(`/${SEASON}/1/results/?limit=100`);
 
     expect(Team.rows).toHaveLength(2);
-    expect(Driver.rows).toHaveLength(2); // rookie отфильтрован
+    // Эпик-10: исторические пилоты без code/number тоже попадают в БД
+    expect(Driver.rows).toHaveLength(3);
     expect(Race.rows).toHaveLength(2);
 
     // координаты трассы приведены к числам
@@ -131,23 +132,27 @@ describe('f1SyncService (мок Jolpica + in-memory модели)', () => {
     // будущая гонка: результаты не запрашивались
     expect(jolpica.getJson).not.toHaveBeenCalledWith(`/${SEASON}/2/results/?limit=100`);
 
-    // результаты: гонка (2 строки, 15-е место отброшено) + спринт (1 строка)
-    expect(RaceResult.rows).toHaveLength(3);
+    // Результаты: полная классификация (3 строки гонки, включая 15-е место) + спринт
+    expect(RaceResult.rows).toHaveLength(4);
     expect(RaceResult.rows.filter((r) => r.sessionType === 'sprint')).toHaveLength(1);
-    const win = RaceResult.rows.find((r) => r.position === 1);
+    const win = RaceResult.rows.find((r) => r.position === 1 && r.sessionType === 'race');
     expect(win.points).toBe(25);
     expect(win.fastestLap).toBe(true);
     expect(win.grid).toBe(1);
+    const tail = RaceResult.rows.find((r) => r.position === 15);
+    expect(tail).toBeTruthy();
+    expect(tail.points).toBe(0);
 
-    // подиум: победа в гонке → 1
+    // Подиумы исторического сезона не перезаписываются (защита текущего сезона)
     const speedy = Driver.rows.find((d) => d.externalId === 'speedy');
-    expect(speedy.podiums).toBe(1);
+    expect(speedy.podiums).toBe(0);
 
     // seasonTeams: связки из результатов и стендингов, без дублей
     expect(SeasonTeam.rows).toHaveLength(2);
     expect(SeasonTeam.rows.every((r) => r.season === SEASON)).toBe(true);
 
-    expect(summary).toMatchObject({ season: SEASON, teams: 2, drivers: 2, races: 2, results: 3, seasonTeams: 2 });
+    expect(summary).toMatchObject({ season: SEASON, teams: 2, drivers: 3, races: 2, results: 4, seasonTeams: 2 });
+    expect(summary.active).toEqual({ season: SEASON, drivers: 2, teams: 2 });
     expect(summary.statusChanges).toEqual([]);
     expect(summary.errors).toEqual([]);
   });
@@ -157,9 +162,9 @@ describe('f1SyncService (мок Jolpica + in-memory модели)', () => {
     await syncSeason(SEASON);
 
     expect(Team.rows).toHaveLength(2);
-    expect(Driver.rows).toHaveLength(2);
+    expect(Driver.rows).toHaveLength(3);
     expect(Race.rows).toHaveLength(2);
-    expect(RaceResult.rows).toHaveLength(3);
+    expect(RaceResult.rows).toHaveLength(4);
     expect(SeasonTeam.rows).toHaveLength(2);
   });
 
