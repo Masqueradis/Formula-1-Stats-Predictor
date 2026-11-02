@@ -34,6 +34,9 @@ export default function AdminResults() {
   const toast = useToast()
   const [drivers, setDrivers] = useState([])
   const [races, setRaces] = useState([])
+  // Эпик-10: сезон-селектор вместо загрузки всех 500+ гонок сразу
+  const [seasons, setSeasons] = useState([])
+  const [season, setSeason] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [driverId, setDriverId] = useState('')
@@ -49,18 +52,45 @@ export default function AdminResults() {
     setLoading(true)
     setError('')
     try {
-      const [dRes, rRes] = await Promise.all([api.get('/drivers'), api.get('/races')])
+      const [dRes, sRes] = await Promise.all([
+        api.get('/drivers'),
+        api.get('/history/seasons'),
+      ])
       setDrivers(dRes.data.data || [])
-      setRaces(sortRaces(rRes.data.data || []))
+      const list = sRes.data.data || []
+      setSeasons(list)
+      if (list.length === 0) setLoading(false)
+      else setSeason((prev) => prev || String(list[0].season))
     } catch {
       setError('Не удалось загрузить данные')
+      setLoading(false)
     }
-    setLoading(false)
   }, [])
 
   useEffect(() => {
     loadBase()
   }, [loadBase])
+
+  const loadRaces = useCallback(async (value) => {
+    if (!value) return
+    try {
+      const { data } = await api.get('/races', { params: { season: value } })
+      setRaces(sortRaces(data.data || []))
+    } catch {
+      setError('Не удалось загрузить гонки')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadRaces(season)
+  }, [season, loadRaces])
+
+  // При смене сезона список доступных гонок другой — сбрасываем выбранную
+  useEffect(() => {
+    setAddForm((prev) => ({ ...prev, raceId: '' }))
+  }, [season])
 
   const loadResults = useCallback(async (id) => {
     if (!id) {
@@ -69,14 +99,16 @@ export default function AdminResults() {
     }
     setLoadingResults(true)
     try {
-      const { data } = await api.get('/race-results', { params: { driverId: id } })
+      const params = { driverId: id }
+      if (season) params.season = season
+      const { data } = await api.get('/race-results', { params })
       setResults(data.data || [])
     } catch {
       setResults([])
       toast.error('Не удалось загрузить результаты')
     }
     setLoadingResults(false)
-  }, [toast])
+  }, [toast, season])
 
   useEffect(() => {
     loadResults(driverId)
@@ -205,7 +237,12 @@ export default function AdminResults() {
       </Card>
 
       <Card className="p-5">
-        <div className="grid gap-3 sm:grid-cols-[280px_1fr] sm:items-end">
+        <div className="grid gap-3 sm:grid-cols-[140px_280px_1fr] sm:items-end">
+          <Select label="Сезон" value={season} onChange={e => setSeason(e.target.value)}>
+            {seasons.map(s => (
+              <option key={s.season} value={String(s.season)}>{s.season}</option>
+            ))}
+          </Select>
           <Select label="Пилот" value={driverId} onChange={e => setDriverId(e.target.value)}>
             <option value="">— выберите пилота —</option>
             {drivers.map(d => (
@@ -230,7 +267,10 @@ export default function AdminResults() {
         <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
           <section>
             <h2 className="mb-4 text-lg font-bold text-foreground dark:text-foreground-dark">
-              Результаты <span className="font-mono text-sm text-muted dark:text-muted-dark">({results.length})</span>
+              Результаты{' '}
+              <span className="font-mono text-sm text-muted dark:text-muted-dark">
+                ({results.length}{season ? ` · сезон ${season}` : ''})
+              </span>
             </h2>
             {loadingResults ? (
               <Spinner label="Загрузка результатов…" />

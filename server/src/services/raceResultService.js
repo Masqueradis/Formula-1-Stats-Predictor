@@ -76,8 +76,23 @@ async function recomputePodiums(driverId) {
   await Driver.update({ podiums }, { where: { id: driverId } });
 }
 
-async function getAll({ driverId, raceId } = {}) {
-  return raceResultRepository.findAllWithOptions({ driverId, raceId });
+async function getAll({ driverId, raceId, season } = {}) {
+  let normalized = normalizeSeason(season);
+  if (normalized === 'current') {
+    normalized = (await SeasonTeam.max('season')) || undefined;
+  }
+  return raceResultRepository.findAllWithOptions({ driverId, raceId, season: normalized });
+}
+
+/** Эпик-10: `?season=YYYY` (или `current`) — иначе 400. */
+function normalizeSeason(raw) {
+  if (raw === undefined || raw === null || raw === '') return undefined;
+  if (String(raw).toLowerCase() === 'current') return 'current';
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value < 1950 || value > 2100) {
+    throw badRequest('season must be a valid year');
+  }
+  return value;
 }
 
 async function getById(rawId) {

@@ -1,5 +1,5 @@
 import useDocumentTitle from '../../hooks/useDocumentTitle'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import api from '../../api'
 import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
@@ -61,17 +61,36 @@ export default function AdminRaces() {
   useDocumentTitle('Админ — Гонки')
   const toast = useToast()
   const [races, setRaces] = useState([])
+  const [seasons, setSeasons] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [seasonFilter, setSeasonFilter] = useState('all')
+  // Эпик-10: после бэкфилла /races без сезона отдаёт 500+ гонок — грузим по сезону
+  const [seasonFilter, setSeasonFilter] = useState('')
   const [confirm, setConfirm] = useState(null)
   const [pendingId, setPendingId] = useState(null)
 
-  const loadAll = useCallback(async () => {
+  const loadSeasons = useCallback(async () => {
+    try {
+      const { data } = await api.get('/history/seasons')
+      const list = data.data || []
+      setSeasons(list)
+      if (list.length === 0) {
+        setLoading(false)
+        return
+      }
+      setSeasonFilter((prev) => prev || String(list[0].season))
+    } catch {
+      setError('Не удалось загрузить сезоны')
+      setLoading(false)
+    }
+  }, [])
+
+  const loadRaces = useCallback(async (season) => {
+    if (!season) return
     setLoading(true)
     setError('')
     try {
-      const { data } = await api.get('/races')
+      const { data } = await api.get('/races', { params: { season } })
       setRaces(sortRaces(data.data || []))
     } catch {
       setError('Не удалось загрузить гонки')
@@ -80,18 +99,14 @@ export default function AdminRaces() {
   }, [])
 
   useEffect(() => {
-    loadAll()
-  }, [loadAll])
+    loadSeasons()
+  }, [loadSeasons])
 
-  const seasons = useMemo(
-    () => [...new Set(races.map(r => r.season))].sort((a, b) => b - a),
-    [races],
-  )
+  useEffect(() => {
+    if (seasonFilter) loadRaces(seasonFilter)
+  }, [seasonFilter, loadRaces])
 
-  const visibleRaces = useMemo(
-    () => (seasonFilter === 'all' ? races : races.filter(r => String(r.season) === seasonFilter)),
-    [races, seasonFilter],
-  )
+  const visibleRaces = races
 
   const addRace = async (form) => {
     const tempId = `temp-${Date.now()}`
@@ -113,6 +128,8 @@ export default function AdminRaces() {
       })
       setRaces(prev => sortRaces(prev.map(r => (r.id === tempId ? data.data : r))))
       toast.success('Гонка добавлена')
+      const addedSeason = String(data.data?.season ?? form.season)
+      if (addedSeason !== seasonFilter) setSeasonFilter(addedSeason)
     } catch (err) {
       setRaces(prev => prev.filter(r => r.id !== tempId))
       toast.error(err.response?.data?.error || 'Не удалось добавить гонку')
@@ -131,6 +148,8 @@ export default function AdminRaces() {
       const { data } = await api.put(`/races/${id}`, patch)
       setRaces(prev => sortRaces(prev.map(r => (r.id === id ? data.data : r))))
       toast.success('Гонка обновлена')
+      const movedTo = String(data.data?.season ?? patch.season)
+      if (movedTo !== seasonFilter) setSeasonFilter(movedTo)
     } catch (err) {
       setRaces(prev => sortRaces(prev.map(r => (r.id === id ? previous : r))))
       toast.error(err.response?.data?.error || 'Не удалось обновить гонку')
@@ -174,7 +193,7 @@ export default function AdminRaces() {
     return (
       <Card className="p-8 text-center">
         <p className="mb-4 text-sm font-medium text-red-500">{error}</p>
-        <Button onClick={loadAll}>Повторить</Button>
+        <Button onClick={() => loadRaces(seasonFilter)}>Повторить</Button>
       </Card>
     )
   }
@@ -187,9 +206,8 @@ export default function AdminRaces() {
             Гонки <span className="font-mono text-sm text-muted dark:text-muted-dark">({visibleRaces.length})</span>
           </h2>
           <Select label="Сезон" value={seasonFilter} onChange={(e) => setSeasonFilter(e.target.value)}>
-            <option value="all">Все сезоны</option>
             {seasons.map(s => (
-              <option key={s} value={String(s)}>{s}</option>
+              <option key={s.season} value={String(s.season)}>{s.season}</option>
             ))}
           </Select>
         </div>

@@ -6,6 +6,7 @@ const PUBLIC_ITEMS = [
   { to: '/drivers', label: 'Пилоты' },
   { to: '/teams', label: 'Команды' },
   { to: '/calendar', label: 'Календарь' },
+  { to: '/history', label: 'История' },
   { to: '/standings', label: 'Турнирная таблица' },
   { to: '/predictions', label: 'Прогнозы' },
   { to: '/vote', label: 'Голосование' },

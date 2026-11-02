@@ -4,6 +4,11 @@ import Card from '../../components/ui/Card'
 export default function DriverCard({ driver }) {
   const teamName = driver.team?.name || 'Без команды'
   const color = driver.team?.color || '#0ea5e9'
+  const meta = [
+    driver.nationality,
+    driver.number ? `№${driver.number}` : null,
+    `подиумы: ${driver.podiums || 0}`,
+  ].filter(Boolean).join(' · ')
 
   return (
     <Link to={`/drivers/${driver.id}`} className="block h-full">
@@ -26,7 +31,7 @@ export default function DriverCard({ driver }) {
             {driver.firstName} {driver.lastName}
           </h3>
           <p className="mt-0.5 text-sm text-muted dark:text-muted-dark">
-            {driver.nationality} · №{driver.number} · подиумы: {driver.podiums || 0}
+            {meta}
           </p>
 
           <div className="mt-3 flex min-w-0 items-center gap-2">

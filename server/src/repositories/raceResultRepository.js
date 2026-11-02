@@ -9,10 +9,12 @@ const INCLUDES = [
   { model: Team, as: 'team' },
 ];
 
-async function findAllWithOptions({ driverId, raceId } = {}) {
+async function findAllWithOptions({ driverId, raceId, season } = {}) {
   const where = {};
   if (driverId) where.driverId = Number(driverId);
   if (raceId) where.raceId = Number(raceId);
+  // Эпик-10: сезонный фильтр для админки (результаты пилота за конкретный год)
+  if (season) where['$race.season$'] = Number(season);
 
   return RaceResult.findAll({
     where,

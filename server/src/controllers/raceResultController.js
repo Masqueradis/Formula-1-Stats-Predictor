@@ -18,11 +18,11 @@ function handleError(res, err) {
 
 async function getAll(req, res) {
   try {
-    const { driverId, raceId } = req.query;
-    const data = await raceResultService.getAll({ driverId, raceId });
+    const { driverId, raceId, season } = req.query;
+    const data = await raceResultService.getAll({ driverId, raceId, season });
     return apiResponse.success(res, data);
   } catch (err) {
-    return apiResponse.error(res, err.message, 500);
+    return apiResponse.error(res, err.message, err.status || 500);
   }
 }
 

@@ -10,9 +10,8 @@ const baseService = buildCrudService({
 function sanitizeRace(race) {
   const json = typeof race.toJSON === 'function' ? race.toJSON() : race;
   const { results, ...rest } = json;
-  const raceOnly = (results || []).filter(
-    (r) => (r.sessionType || 'race') === 'race' && !(r.driver && r.driver.isActive === false),
-  );
+  // Эпик-10: в исторических гонках пилоты уже неактивны — не выкидываем их из подиума
+  const raceOnly = (results || []).filter((r) => (r.sessionType || 'race') === 'race');
   const sorted = [...raceOnly].sort((a, b) => (a.position || 0) - (b.position || 0));
   const winner = sorted.find((r) => r.position === 1) || null;
   const topThree = sorted.slice(0, 3).map((r) => {
@@ -25,9 +24,30 @@ function sanitizeRace(race) {
   return { ...rest, winner: winner && winner.driver ? topThree[0].driver : null, results: topThree };
 }
 
-async function getAll() {
-  const races = await raceRepository.findAllWithResults();
+async function getAll({ season } = {}) {
+  const resolved = await resolveSeason(season);
+  const races = await raceRepository.findAllWithResults(resolved);
   return races.map(sanitizeRace);
+}
+
+/**
+ * Эпик-10: `?season=current` — максимальный сезон в БД, `?season=YYYY` — конкретный.
+ * Без параметра возвращается всё (для обратной совместимости), но UI так не делает.
+ */
+function normalizeSeasonFilter(raw) {
+  if (raw === undefined || raw === null || raw === '') return null;
+  if (String(raw).toLowerCase() === 'current') return 'current';
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value < 1950 || value > 2100) {
+    throw httpError(400, 'season must be a valid year');
+  }
+  return value;
+}
+
+async function resolveSeason(raw) {
+  const filter = normalizeSeasonFilter(raw);
+  if (filter === 'current') return (await raceRepository.maxSeason()) || null;
+  return filter;
 }
 
 async function getById(rawId) {

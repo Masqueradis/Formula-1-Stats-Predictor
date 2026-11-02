@@ -1,5 +1,6 @@
 import useDocumentTitle from '../hooks/useDocumentTitle'
 import { useCallback, useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import api from '../api'
 import Card from '../components/ui/Card'
 import Spinner from '../components/ui/Spinner'
@@ -96,10 +97,8 @@ export default function CalendarPage() {
     setIsLoading(true)
     setIsError(false)
     try {
-      const { data } = await api.get('/races')
-      const sorted = [...(data.data || [])].sort(
-        (a, b) => (a.season - b.season) || (a.round - b.round),
-      )
+      const { data } = await api.get('/races', { params: { season: 'current' } })
+      const sorted = [...(data.data || [])].sort((a, b) => (a.round - b.round))
       setRaces(sorted)
     } catch {
       setIsError(true)
@@ -129,7 +128,15 @@ export default function CalendarPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-foreground dark:text-foreground-dark">Календарь Гран-при</h1>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <h1 className="text-2xl font-bold text-foreground dark:text-foreground-dark">Календарь Гран-при</h1>
+        <Link
+          to="/history"
+          className="rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-bold text-primary transition-colors hover:bg-primary/20 dark:bg-accent/10 dark:text-accent dark:hover:bg-accent/20"
+        >
+          История 2000–2025 →
+        </Link>
+      </div>
 
       {races.length === 0 ? (
         <Card className="border-dashed p-8 text-center text-muted dark:text-muted-dark">Нет гонок</Card>

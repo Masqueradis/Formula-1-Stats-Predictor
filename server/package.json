@@ -15,7 +15,8 @@
     "sync:f1": "node src/scripts/syncF1.js",
     "test": "jest --runInBand",
     "test:coverage": "jest --runInBand --coverage",
-    "test:integration": "jest --runInBand tests/integration"
+    "test:integration": "jest --runInBand tests/integration",
+    "sync:history": "node src/scripts/syncHistory.js"
   },
   "keywords": [
     "f1",

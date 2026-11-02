@@ -1,5 +1,6 @@
 'use strict';
 
+const { Op } = require('sequelize');
 const { Team, Driver, Race, SeasonTeam, RaceResult } = require('../models');
 const { TEAM_META } = require('../data/teamMeta');
 const jolpica = require('../clients/jolpicaClient');
@@ -38,19 +39,98 @@ function normalizeNumber(value) {
   return Number.isFinite(n) ? n : 0;
 }
 
+function optionalNumber(value) {
+  if (value === undefined || value === null || value === '') return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+/**
+ * Эпик-10: у старых сезонов (2000–2014) Jolpica не отдаёт `code`/`permanentNumber`.
+ * Аббревиатура строится из первых трёх букв фамилии, коллизии получают числовой
+ * суффикс (столбец — STRING(3)), поэтому аббревиатура остаётся трёхсимвольной.
+ */
+function baseAbbreviation(raw) {
+  const source = String(raw.code || raw.familyName || raw.lastName || 'DRV');
+  const cleaned = source.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 3);
+  return (cleaned || 'DRV').padEnd(3, 'X');
+}
+
+async function uniqueAbbreviation(base) {
+  if (!(await Driver.findOne({ where: { abbreviation: base } }))) return base;
+  for (let i = 2; i <= 999; i += 1) {
+    const suffix = String(i);
+    const candidate = `${base.slice(0, Math.max(0, 3 - suffix.length))}${suffix}`.slice(-3);
+    if (!(await Driver.findOne({ where: { abbreviation: candidate } }))) return candidate;
+  }
+  throw new Error(`cannot generate unique abbreviation for ${base}`);
+}
+
+/** Опциональные эндпоинты (sprint/drivers/standings) у старых сезонов могут 404 — не валим синк. */
+async function safeGet(path) {
+  try {
+    return await jolpica.getJson(path);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Пересчёт флага isActive по последнему сезону, который есть в season_teams:
+ * активны только участники последнего сезона, остальные (исторические) — архив.
+ * Ручные записи без строк в season_teams не трогаются.
+ */
+async function refreshActiveFlags() {
+  const latestSeason = await SeasonTeam.max('season');
+  if (!latestSeason) return { season: null, drivers: 0, teams: 0 };
+
+  const latest = await SeasonTeam.findAll({
+    where: { season: latestSeason },
+    attributes: ['driverId', 'teamId'],
+  });
+  const activeDriverIds = [...new Set(latest.map((row) => row.driverId))].filter(Boolean);
+  const activeTeamIds = [...new Set(latest.map((row) => row.teamId))].filter(Boolean);
+
+  const all = await SeasonTeam.findAll({ attributes: ['driverId', 'teamId'] });
+  const allDriverIds = [...new Set(all.map((row) => row.driverId))].filter(Boolean);
+  const allTeamIds = [...new Set(all.map((row) => row.teamId))].filter(Boolean);
+
+  const inactiveDriverIds = allDriverIds.filter((id) => !activeDriverIds.includes(id));
+  const inactiveTeamIds = allTeamIds.filter((id) => !activeTeamIds.includes(id));
+
+  if (activeDriverIds.length) {
+    await Driver.update({ isActive: true }, { where: { id: { [Op.in]: activeDriverIds } } });
+  }
+  if (activeTeamIds.length) {
+    await Team.update({ isActive: true }, { where: { id: { [Op.in]: activeTeamIds } } });
+  }
+  if (inactiveDriverIds.length) {
+    await Driver.update({ isActive: false }, { where: { id: { [Op.in]: inactiveDriverIds } } });
+  }
+  if (inactiveTeamIds.length) {
+    await Team.update({ isActive: false }, { where: { id: { [Op.in]: inactiveTeamIds } } });
+  }
+
+  return {
+    season: latestSeason,
+    drivers: activeDriverIds.length,
+    teams: activeTeamIds.length,
+  };
+}
+
 async function syncSeason(rawSeason, options = {}) {
   const season = Number(rawSeason) || Number(options.season) || new Date().getFullYear();
   const summary = { season, teams: 0, drivers: 0, races: 0, results: 0, seasonTeams: 0, errors: [] };
   // Гонки, у которых статус реально изменился (scheduled ↔ finished) — для live-push
   const statusChanges = [];
 
-  const [schedulePayload, constructorsPayload, driversPayload, standingsPayload, sprintPayload] =
+  const schedulePayload = await jolpica.getJson(`/${season}/?limit=100`);
+  const [constructorsPayload, driversPayload, standingsPayload, sprintPayload] =
     await Promise.all([
-      jolpica.getJson(`/${season}/?limit=100`),
-      jolpica.getJson(`/${season}/constructors/?limit=100`),
-      jolpica.getJson(`/${season}/drivers/?limit=100`),
-      jolpica.getJson(`/${season}/driverstandings/?limit=100`),
-      jolpica.getJson(`/${season}/sprint/?limit=100`),
+      safeGet(`/${season}/constructors/?limit=100`),
+      safeGet(`/${season}/drivers/?limit=100`),
+      safeGet(`/${season}/driverstandings/?limit=100`),
+      safeGet(`/${season}/sprint/?limit=100`),
     ]);
 
   const schedule = schedulePayload?.MRData?.RaceTable?.Races || [];
@@ -102,12 +182,10 @@ async function syncSeason(rawSeason, options = {}) {
     if (!externalId) return null;
     if (driverByExternal.has(externalId)) return driverByExternal.get(externalId);
 
-    const abbreviation = (raw.code || raw.familyName || '???').slice(0, 3).toUpperCase();
     const values = {
       externalId,
-      firstName: raw.givenName || raw.firstName,
-      lastName: raw.familyName || raw.lastName,
-      abbreviation,
+      firstName: raw.givenName || raw.firstName || 'Unknown',
+      lastName: raw.familyName || raw.lastName || externalId,
       number: normalizeNumber(raw.permanentNumber),
       nationality: raw.nationality || 'Unknown',
       dateOfBirth: raw.dateOfBirth || null,
@@ -115,13 +193,22 @@ async function syncSeason(rawSeason, options = {}) {
 
     let driver = await Driver.findOne({ where: { externalId } });
     if (driver) {
+      // podiums не трогаем: это агрегат, который пересчитывается отдельно
       await driver.update(values);
     } else {
-      driver = await Driver.findOne({ where: { abbreviation } });
-      if (driver) {
-        await driver.update(values);
-      } else {
-        driver = await Driver.create({ ...values, podiums: 0 });
+      // Старые сезоны без `code`: пробуем привязаться к ручной/сидовой записи
+      // по аббревиатуре, но только если у неё ещё нет externalId.
+      const code = raw.code ? baseAbbreviation(raw) : null;
+      if (code) {
+        const byCode = await Driver.findOne({ where: { abbreviation: code } });
+        if (byCode && !byCode.externalId) {
+          driver = await byCode;
+          await driver.update(values);
+        }
+      }
+      if (!driver) {
+        const abbreviation = await uniqueAbbreviation(baseAbbreviation(raw));
+        driver = await Driver.create({ ...values, abbreviation, podiums: 0 });
       }
     }
     driverByExternal.set(externalId, driver);
@@ -133,8 +220,8 @@ async function syncSeason(rawSeason, options = {}) {
     await ensureTeam(constructor);
   }
 
-  // Jolpica отдаёт и тест-пилотов без номера/кода — в ростере оставляем только боевых
-  for (const driver of drivers.filter((d) => d.permanentNumber && d.code)) {
+  // Эпик-10: исторические пилоты часто без permanentNumber/code — их тоже заводим
+  for (const driver of drivers) {
     await ensureDriver(driver);
   }
 
@@ -195,39 +282,42 @@ async function syncSeason(rawSeason, options = {}) {
 
     let sprintResults = [];
     if (sprintRounds.has(round)) {
-      try {
-        const sprintPayload = await jolpica.getJson(`/${season}/${round}/sprint/?limit=100`);
-        sprintResults = resultsFrom(sprintPayload);
-      } catch (err) {
-        summary.errors.push(`sprint ${season}/${round}: ${err.message}`);
-      }
+      const sprintPayloadForRound = await safeGet(`/${season}/${round}/sprint/?limit=100`);
+      sprintResults = resultsFrom(sprintPayloadForRound);
     }
 
     const rows = [];
     const collect = async (list, sessionType) => {
-      const limit = sessionType === 'sprint' ? 8 : 10;
       for (const item of list) {
-        if (Number(item.position) > limit && normalizeNumber(item.points) <= 0) continue;
         const driver = await ensureDriver(item.Driver);
         const team = await ensureTeam(item.Constructor);
         if (!driver || !team) continue;
         addSeasonTeamPair(item.Driver.driverId, item.Constructor.constructorId);
-        if (sessionType === 'race' && Number(item.position) <= 3) {
+
+        const position = optionalNumber(item.position);
+        if (sessionType === 'race' && position !== null && position >= 1 && position <= 3) {
           podiumByDriver.set(driver.id, (podiumByDriver.get(driver.id) || 0) + 1);
         }
         rows.push({
           raceId: raceRecord.id,
           driverId: driver.id,
           teamId: team.id,
-          position: Number(item.position),
+          position,
           points: normalizeNumber(item.points),
           grid: item.grid != null ? Number(item.grid) : null,
-          fastestLap: sessionType === 'race' && item.FastestLap?.rank === '1',
+          fastestLap: sessionType === 'race' && String(item.FastestLap?.rank) === '1',
           sessionType,
+          // Эпик-10: полная классификация — позиция текстом (R, D, W, NC…),
+          // статус (Finished, +1 Lap, Accident…), время и число кругов.
+          positionText: item.positionText != null ? String(item.positionText) : null,
+          status: item.status || null,
+          time: item.Time?.time || null,
+          laps: optionalNumber(item.laps),
         });
       }
     };
 
+    // Полная классификация: раньше брали только топ-10/очковых, теперь — все строки
     await collect(raceResults, 'race');
     await collect(sprintResults, 'sprint');
 
@@ -264,12 +354,20 @@ async function syncSeason(rawSeason, options = {}) {
     summary.seasonTeams += 1;
   }
 
-  for (const [driverId, podiums] of podiumByDriver.entries()) {
-    await Driver.update({ podiums }, { where: { id: driverId } });
+  // Подиумы — агрегат текущего сезона (в исторических сезонах не перезаписываем,
+  // иначе синк 2000-2025 обнулит актуальные значения).
+  if (season === new Date().getFullYear()) {
+    for (const [driverId, podiums] of podiumByDriver.entries()) {
+      await Driver.update({ podiums }, { where: { id: driverId } });
+    }
+  }
+
+  if (options.refreshActive !== false) {
+    summary.active = await refreshActiveFlags();
   }
 
   summary.statusChanges = statusChanges;
   return summary;
 }
 
-module.exports = { syncSeason, raceExternalId };
+module.exports = { syncSeason, refreshActiveFlags, raceExternalId };

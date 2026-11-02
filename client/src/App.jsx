@@ -13,6 +13,8 @@ const TeamsPage = lazy(() => import('./pages/TeamsPage'))
 const TeamDetailPage = lazy(() => import('./pages/TeamDetailPage'))
 const CalendarPage = lazy(() => import('./pages/CalendarPage'))
 const StandingsPage = lazy(() => import('./pages/StandingsPage'))
+const HistoryPage = lazy(() => import('./pages/HistoryPage'))
+const HistoryRacePage = lazy(() => import('./pages/HistoryRacePage'))
 const PredictionsPage = lazy(() => import('./pages/PredictionsPage'))
 const VotePage = lazy(() => import('./pages/VotePage'))
 const LeaderboardPage = lazy(() => import('./pages/LeaderboardPage'))
@@ -40,6 +42,8 @@ const router = createBrowserRouter([
       { path: 'teams/:id', element: <TeamDetailPage /> },
       { path: 'calendar', element: <CalendarPage /> },
       { path: 'standings', element: <StandingsPage /> },
+      { path: 'history', element: <HistoryPage /> },
+      { path: 'history/races/:raceId', element: <HistoryRacePage /> },
       { path: 'predictions', element: <PredictionsPage /> },
       { path: 'vote', element: <VotePage /> },
       { path: 'leaderboard', element: <LeaderboardPage /> },
