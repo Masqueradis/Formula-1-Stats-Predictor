@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import ThemeToggle from '../components/ThemeToggle'
 import LiveIndicator from '../components/LiveIndicator'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../context/useAuth'
 import NavBar from './NavBar'
 
 export default function Header({ theme, onToggleTheme }) {

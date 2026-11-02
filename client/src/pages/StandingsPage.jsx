@@ -2,11 +2,12 @@ import useDocumentTitle from '../hooks/useDocumentTitle'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import api from '../api'
-import { useSocket } from '../context/SocketContext'
+import { useSocket } from '../context/useSocket'
 import Card from '../components/ui/Card'
 import Spinner from '../components/ui/Spinner'
 
 const NUMERIC_KEYS = ['wins', 'podiums', 'points']
+const EMPTY_STANDINGS = []
 
 function valueFor(row, key) {
   if (key === 'driver') return `${row.lastName || ''} ${row.firstName || ''}`.toLowerCase()
@@ -68,7 +69,7 @@ export default function StandingsPage() {
     })
   }, [subscribe, load])
 
-  const standings = data?.standings || []
+  const standings = data?.standings || EMPTY_STANDINGS
 
   const rankById = useMemo(() => {
     const map = new Map()

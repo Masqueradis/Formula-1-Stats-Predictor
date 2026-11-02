@@ -11,15 +11,13 @@ export default function VerifyPage() {
   const [searchParams] = useSearchParams()
   const token = searchParams.get('token')
 
-  const [status, setStatus] = useState('loading')
-  const [message, setMessage] = useState('')
+  const [status, setStatus] = useState(() => (token ? 'loading' : 'error'))
+  const [message, setMessage] = useState(() =>
+    token ? '' : 'Отсутствует токен подтверждения. Откройте ссылку из письма целиком.',
+  )
 
   useEffect(() => {
-    if (!token) {
-      setStatus('error')
-      setMessage('Отсутствует токен подтверждения. Откройте ссылку из письма целиком.')
-      return
-    }
+    if (!token) return
 
     let cancelled = false
     api

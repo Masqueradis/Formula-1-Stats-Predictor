@@ -4,6 +4,8 @@ const fs = require('fs');
 const path = require('path');
 const { XMLParser } = require('fast-xml-parser');
 const { Driver, Team } = require('../models');
+const newsItemRepository = require('../repositories/newsItemRepository');
+const logger = require('../utils/logger');
 
 const parser = new XMLParser({
   ignoreAttributes: false,
@@ -40,9 +42,39 @@ const SOURCES = [
     lang: 'ru',
     url: 'https://news.google.com/rss/search?q=formula+1&hl=ru&gl=RU&ceid=RU:ru',
   },
+  {
+    id: 'motorsport',
+    name: 'Motorsport.com',
+    lang: 'en',
+    url: 'https://www.motorsport.com/rss/f1/news/',
+  },
+  {
+    id: 'autosport',
+    name: 'Autosport',
+    lang: 'en',
+    url: 'https://www.autosport.com/rss/f1/news/',
+  },
+  {
+    id: 'racefans',
+    name: 'RaceFans',
+    lang: 'en',
+    url: 'https://www.racefans.net/feed/',
+  },
+  {
+    id: 'the-race',
+    name: 'The Race',
+    lang: 'en',
+    url: 'https://www.the-race.com/rss/',
+  },
+  {
+    id: 'sky-sports',
+    name: 'Sky Sports',
+    lang: 'en',
+    url: 'https://www.skysports.com/rss/12433',
+  },
 ];
 
-const MAX_POOL = 150;
+const MAX_POOL = 300;
 const DEFAULT_LIMIT = 12;
 const MAX_LIMIT = 48;
 const MAX_DESCRIPTION_LENGTH = 200;
@@ -108,6 +140,43 @@ function extractImage(item) {
   return null;
 }
 
+/**
+ * Дата из RSS: JS не понимает аббревиатуры зон (BST, CEST у Sky Sports/Autosport),
+ * из-за чего new Date() → Invalid Date и toISOString() ронял весь источник.
+ * Пробуем напрямую, затем подставляем смещение по таблице, иначе null.
+ */
+const TZ_OFFSETS = {
+  BST: '+0100',
+  CET: '+0100',
+  CEST: '+0200',
+  EET: '+0200',
+  EEST: '+0300',
+  EST: '-0500',
+  EDT: '-0400',
+  CST: '-0600',
+  CDT: '-0500',
+  MST: '-0700',
+  MDT: '-0600',
+  PST: '-0800',
+  PDT: '-0700',
+  JST: '+0900',
+  AEST: '+1000',
+};
+
+function parsePublishedAt(value) {
+  if (!value) return null;
+  const direct = new Date(value);
+  if (!Number.isNaN(direct.getTime())) return direct.toISOString();
+
+  const match = String(value).match(/\b([A-Z]{2,4})\s*$/);
+  const offset = match ? TZ_OFFSETS[match[1]] : null;
+  if (offset) {
+    const replaced = new Date(String(value).replace(/\b[A-Z]{2,4}\s*$/, offset));
+    if (!Number.isNaN(replaced.getTime())) return replaced.toISOString();
+  }
+  return null;
+}
+
 function parseRss(xml) {
   const doc = parser.parse(xml);
   const items = safeArray(doc?.rss?.channel?.item);
@@ -117,7 +186,7 @@ function parseRss(xml) {
     link: extractText(item.link),
     guid: extractText(item.guid) || extractText(item.link),
     description: stripHtml(extractText(item.description)).slice(0, MAX_DESCRIPTION_LENGTH),
-    publishedAt: item.pubDate ? new Date(item.pubDate).toISOString() : null,
+    publishedAt: parsePublishedAt(item.pubDate),
     image: extractImage(item),
     sourceTag: extractText(item.source).trim(),
   }));
@@ -210,6 +279,9 @@ async function loadPool() {
     cache.items = fresh;
     cache.fetchedAt = now;
     writeDiskCache(fresh, now);
+    // Архив в Postgres (эпик-09, P4): сбой записи не должен ломать ленту
+    await newsItemRepository.upsertMany(fresh)
+      .catch((err) => logger.warn('news.archive_failed', { reason: err.message }));
     return { items: fresh, fetchedAt: now, cached: false };
   }
 
@@ -261,10 +333,27 @@ async function resolveKeywordGroups({ driverId, teamId }) {
   return groups;
 }
 
-function applyFilters(items, { source, lang, search, keywordGroups }) {
+function parseDayBound(value, endOfDay) {
+  if (!value) return null;
+  const date = new Date(`${value}T${endOfDay ? '23:59:59.999' : '00:00:00.000'}Z`);
+  return Number.isNaN(date.getTime()) ? null : date.getTime();
+}
+
+function inDateRange(publishedAt, from, to) {
+  if (!from && !to) return true;
+  if (!publishedAt) return false;
+  const ts = new Date(publishedAt).getTime();
+  if (Number.isNaN(ts)) return false;
+  if (from && ts < from) return false;
+  if (to && ts > to) return false;
+  return true;
+}
+
+function applyFilters(items, { source, lang, search, keywordGroups, from, to }) {
   return items.filter((item) => {
     if (source && item.source?.id !== source) return false;
     if (lang && item.lang !== lang) return false;
+    if (!inDateRange(item.publishedAt, from, to)) return false;
 
     const haystack = `${item.title || ''} ${item.description || ''}`;
     if (search && !new RegExp(escapeRegExp(search), 'i').test(haystack)) return false;
@@ -287,15 +376,26 @@ async function getNews(options = {}) {
     search = null,
     driverId = null,
     teamId = null,
+    from = null,
+    to = null,
   } = options;
 
   const page = toPositiveInt(options.page, 1);
   const limit = Math.min(toPositiveInt(options.limit, DEFAULT_LIMIT), MAX_LIMIT);
+  const fromDate = parseDayBound(from, false);
+  const toDate = parseDayBound(to, true);
 
   const pool = await loadPool();
   const keywordGroups = await resolveKeywordGroups({ driverId, teamId }).catch(() => []);
 
-  const filtered = applyFilters(pool.items, { source, lang, search, keywordGroups });
+  const filtered = applyFilters(pool.items, {
+    source,
+    lang,
+    search,
+    keywordGroups,
+    from: fromDate,
+    to: toDate,
+  });
   const total = filtered.length;
   const totalPages = total ? Math.ceil(total / limit) : 0;
   const start = (page - 1) * limit;
@@ -315,4 +415,22 @@ async function getNews(options = {}) {
   };
 }
 
-module.exports = { getNews, SOURCES };
+/**
+ * Поиск по архиву новостей в Postgres (эпик-09, P4):
+ * полнотекстовый (tsvector) + подстрочный (ILIKE), фильтр по датам.
+ */
+async function searchArchive(options = {}) {
+  const result = await newsItemRepository.search(options);
+  const start = (result.page - 1) * result.limit;
+  return {
+    ...result,
+    hasMore: start + result.items.length < result.total,
+    sources: SOURCES.map(({ id, name, lang: sourceLang }) => ({ id, name, lang: sourceLang })),
+    archive: true,
+    cached: false,
+    stale: false,
+    offline: false,
+  };
+}
+
+module.exports = { getNews, searchArchive, SOURCES };

@@ -230,6 +230,11 @@ function emitStandings(payload = {}) {
   return safeEmit('standings:update', { at: new Date().toISOString(), ...payload });
 }
 
+/** Пересчёт рейтинга предсказателей (cron UC-2) — страница «Рейтинг». */
+function emitLeaderboard(payload = {}) {
+  return safeEmit('leaderboard:update', { at: new Date().toISOString(), ...payload });
+}
+
 /** Обновление народного прогноза (голоса) для конкретной гонки. */
 function emitVote(raceId, payload = {}) {
   return safeEmit('vote:update', { raceId: String(raceId), at: new Date().toISOString(), ...payload }, `race:${raceId}`);
@@ -250,6 +255,7 @@ module.exports = {
   getIO,
   safeEmit,
   emitStandings,
+  emitLeaderboard,
   emitVote,
   emitComment,
   emitRaceStatus,

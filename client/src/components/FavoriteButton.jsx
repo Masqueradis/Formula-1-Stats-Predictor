@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../context/useAuth'
 import api from '../api'
 import Button from './ui/Button'
-import { useToast } from './ui/Toast'
+import { useToast } from './ui/useToast'
 
 const NOUNS = {
   drivers: { add: 'Пилот добавлен в избранное', remove: 'Пилот убран из избранного' },

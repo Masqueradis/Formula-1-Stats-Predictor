@@ -12,7 +12,10 @@
     "db:seed": "sequelize-cli db:seed:all",
     "db:seed:undo": "sequelize-cli db:seed:undo:all",
     "seed:mongo": "node src/scripts/seedMongo.js",
-    "sync:f1": "node src/scripts/syncF1.js"
+    "sync:f1": "node src/scripts/syncF1.js",
+    "test": "jest --runInBand",
+    "test:coverage": "jest --runInBand --coverage",
+    "test:integration": "jest --runInBand tests/integration"
   },
   "keywords": [
     "f1",
@@ -37,7 +40,10 @@
     "socket.io": "^4.8.4"
   },
   "devDependencies": {
+    "jest": "^29.7.0",
     "nodemon": "^3.1.14",
-    "sequelize-cli": "^6.6.5"
+    "sequelize-cli": "^6.6.5",
+    "socket.io-client": "^4.8.4",
+    "supertest": "^7.3.1"
   }
 }

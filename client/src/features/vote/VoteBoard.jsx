@@ -16,7 +16,7 @@ import { CSS } from '@dnd-kit/utilities'
 import api from '../../api'
 import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
-import { useToast } from '../../components/ui/Toast'
+import { useToast } from '../../components/ui/useToast'
 
 /** Перемешивание Фишера-Йейтса (для «Случайно») */
 function shuffle(items) {
@@ -132,13 +132,15 @@ function SlotRow({ index, entry, canEdit, onClear, isOver, dragType }) {
   )
 }
 
+const EMPTY_ENTRIES = []
+
 function eColor(entry) {
   return entry.teamColor || '#0ea5e9'
 }
 
 export default function VoteBoard({ doc, user, onChanged, onBusyChange }) {
   const toast = useToast()
-  const entries = doc.entries || []
+  const entries = doc.entries || EMPTY_ENTRIES
   const myVote = user ? (doc.votes || []).find((v) => Number(v.userId) === Number(user.id)) : null
 
   const [editing, setEditing] = useState(!myVote)

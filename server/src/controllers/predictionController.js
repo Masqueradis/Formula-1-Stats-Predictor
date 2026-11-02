@@ -59,7 +59,12 @@ async function updateVote(req, res) {
 
 async function removeVote(req, res) {
   try {
-    const doc = await predictionService.removeVote(req.params.raceId, req.params.userId, req.user);
+    const doc = await predictionService.removeVote(
+      req.params.raceId,
+      req.params.userId,
+      req.user,
+      req.query.kind,
+    );
     return apiResponse.success(res, doc);
   } catch (err) {
     return fail(res, err);

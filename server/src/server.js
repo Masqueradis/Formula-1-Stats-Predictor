@@ -19,6 +19,13 @@ db.sequelize.sync().then(() => {
   });
 
   // Не блокирует старт: при недоступности Mongo сервер работает (503 на /api/predictions)
-  connectMongo();
+  const mongoReady = connectMongo();
   require('./jobs/f1SyncJob').start();
+  // UC-2: начисление баллов по завершённым гонкам + пересчёт leaderboard (US-6).
+  // Первый пересчёт уходит после connectMongo — рейтинг не пуст уже на старте.
+  mongoReady.then(() => {
+    require('./jobs/leaderboardJob').start();
+    // Todo 7: напоминания за 24 ч до гонки (журнал дедупликации в Mongo)
+    require('./jobs/emailReminderJob').start();
+  });
 });

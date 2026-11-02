@@ -38,6 +38,40 @@ async function getById(rawId) {
   return sanitizeRace(race);
 }
 
+function httpError(status, message) {
+  const err = new Error(message);
+  err.status = status;
+  return err;
+}
+
+/**
+ * US-7 (эпик-09): нормализация ссылки на трансляцию.
+ * Пустое значение → null (ссылки нет), иначе — валидный http(s)-URL ≤500 символов.
+ */
+function normalizeBroadcastUrl(value) {
+  const trimmed = String(value ?? '').trim();
+  if (!trimmed) return null;
+  if (!/^https?:\/\/[^\s]+$/i.test(trimmed)) {
+    throw httpError(400, 'broadcastUrl must be a valid http(s) URL');
+  }
+  if (trimmed.length > 500) {
+    throw httpError(400, 'broadcastUrl is too long (max 500 characters)');
+  }
+  return trimmed;
+}
+
+async function create(data) {
+  return baseService.create({ ...data, broadcastUrl: normalizeBroadcastUrl(data.broadcastUrl) });
+}
+
+async function update(rawId, data) {
+  const patch = { ...data };
+  if (Object.prototype.hasOwnProperty.call(patch, 'broadcastUrl')) {
+    patch.broadcastUrl = normalizeBroadcastUrl(patch.broadcastUrl);
+  }
+  return baseService.update(rawId, patch);
+}
+
 /**
  * Удаление гонки с каскадом в MongoDB (решение В3 эпика-06):
  * меж-БД-каскада не существует, поэтому после успешного удаления строки
@@ -57,5 +91,7 @@ module.exports = {
   ...baseService,
   getAll,
   getById,
+  create,
+  update,
   remove,
 };

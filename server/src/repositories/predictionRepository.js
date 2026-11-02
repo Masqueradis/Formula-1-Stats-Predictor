@@ -40,33 +40,50 @@ async function removeByRaceId(raceId) {
  * (проверка-then-insert не атомарна — здесь источник истины сам update).
  * null → дубль голоса.
  */
+/**
+ * Голос пользователя. Уникальность — пара (userId, kind): один народный ('full')
+ * И один личный ТОП-3 ('top3') на гонку (US-5), чтобы фичи не конфликтовали.
+ */
 async function addVote(raceId, vote) {
   return RacePredictionDoc.findOneAndUpdate(
-    { raceId, 'votes.userId': { $ne: vote.userId } },
+    {
+      raceId,
+      votes: { $not: { $elemMatch: { userId: vote.userId, kind: vote.kind } } },
+    },
     { $push: { votes: vote } },
     { returnDocument: 'after' },
   ).exec();
 }
 
-/** Обновление элемента массива позиционным оператором $ (часть 6 задания) */
+/** Обновление элемента массива позиционным оператором $ (часть 6 задания).
+ *  kind в условии — иначе positional $ взял бы первый vote пользователя не того типа. */
 async function updateVote(raceId, userId, { kind, picks }) {
+  // Фильтрованный позиционный $[v], а не голый $: у юзера может быть ДВА голоса
+  // (full + top3, US-5), и обычный $ на части серверов выбирает первый элемент,
+  // совпадающий лишь по userId — правился чужой голос (поймано тестом эпик-09).
   return RacePredictionDoc.findOneAndUpdate(
-    { raceId, 'votes.userId': userId },
+    { raceId, 'votes.userId': userId, 'votes.kind': kind },
     {
       $set: {
-        'votes.$.kind': kind,
-        'votes.$.picks': picks,
-        'votes.$.updatedAt': new Date(),
+        'votes.$[v].kind': kind,
+        'votes.$[v].picks': picks,
+        'votes.$[v].updatedAt': new Date(),
       },
     },
-    { returnDocument: 'after' },
+    {
+      arrayFilters: [{ 'v.userId': userId, 'v.kind': kind }],
+      returnDocument: 'after',
+    },
   ).exec();
 }
 
-async function removeVote(raceId, userId) {
+/** kind опционален: без него удаляются все голоса пользователя (старое поведение API) */
+async function removeVote(raceId, userId, kind) {
+  const filter = { userId };
+  if (kind) filter.kind = kind;
   return RacePredictionDoc.findOneAndUpdate(
     { raceId, 'votes.userId': userId },
-    { $pull: { votes: { userId } } },
+    { $pull: { votes: filter } },
     { returnDocument: 'after' },
   ).exec();
 }
@@ -117,6 +134,8 @@ async function aggregateStats(match = {}) {
   return RacePredictionDoc.aggregate([
     ...(Object.keys(match).length ? [{ $match: match }] : []),
     { $unwind: '$votes' },
+    // Народный рейтинг — только 'full'-голоса; личные ТОП-3 (US-5) в нём не участвуют
+    { $match: { 'votes.kind': 'full' } },
     { $unwind: '$votes.picks' },
     {
       $group: {
@@ -134,6 +153,65 @@ async function aggregateStats(match = {}) {
   ]).exec();
 }
 
+/**
+ * UC-2: записать баллы голосов завершённой гонки (bulkWrite).
+ * entries: [{ userId, kind, score, exactHits, podiumHits }]
+ * Фильтрованный $[v] вместо голого $ — см. комментарий в updateVote (full+top3 у юзера).
+ */
+async function applyVoteScores(raceId, entries) {
+  if (!entries.length) return null;
+  const ops = entries.map((entry) => ({
+    updateOne: {
+      filter: { raceId, 'votes.userId': entry.userId, 'votes.kind': entry.kind },
+      update: {
+        $set: {
+          'votes.$[v].score': entry.score,
+          'votes.$[v].exactHits': entry.exactHits,
+          'votes.$[v].podiumHits': entry.podiumHits,
+          'votes.$[v].scoredAt': new Date(),
+        },
+      },
+      arrayFilters: [{ 'v.userId': entry.userId, 'v.kind': entry.kind }],
+    },
+  }));
+  return RacePredictionDoc.bulkWrite(ops);
+}
+
+/**
+ * US-6: рейтинг предсказателей — $unwind votes → отбор оценённых → $group по
+ * userId (сумма баллов, число прогнозов, точные места, попадания в ТОП-3).
+ */
+async function aggregateLeaderboard(limit = 50) {
+  return RacePredictionDoc.aggregate([
+    { $unwind: '$votes' },
+    { $match: { 'votes.score': { $ne: null } } },
+    {
+      $group: {
+        _id: '$votes.userId',
+        points: { $sum: '$votes.score' },
+        predictions: { $sum: 1 },
+        exactHits: { $sum: { $ifNull: ['$votes.exactHits', 0] } },
+        podiumHits: { $sum: { $ifNull: ['$votes.podiumHits', 0] } },
+        lastUsername: { $last: '$votes.username' }, // fallback, если пользователя больше нет в PG
+      },
+    },
+    // Баллы → точные места → ТОП-3 → userId: детерминированный порядок без «прыжков»
+    { $sort: { points: -1, exactHits: -1, podiumHits: -1, _id: 1 } },
+    { $limit: Math.max(1, Math.min(Number(limit) || 50, 200)) },
+  ]).exec();
+}
+
+/** Сколько пользователей вообще есть с оценёнными голосами (для total). */
+async function countLeaderboardParticipants() {
+  const rows = await RacePredictionDoc.aggregate([
+    { $unwind: '$votes' },
+    { $match: { 'votes.score': { $ne: null } } },
+    { $group: { _id: '$votes.userId' } },
+    { $count: 'total' },
+  ]).exec();
+  return rows[0]?.total || 0;
+}
+
 module.exports = {
   findAll,
   findByRaceId,
@@ -148,4 +226,7 @@ module.exports = {
   addLike,
   removeLike,
   aggregateStats,
+  applyVoteScores,
+  aggregateLeaderboard,
+  countLeaderboardParticipants,
 };

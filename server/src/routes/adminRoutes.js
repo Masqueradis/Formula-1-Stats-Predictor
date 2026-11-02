@@ -3,8 +3,11 @@ const ctrl = require('../controllers/adminController');
 const { authenticate } = require('../middleware/authenticate');
 const { isAdmin } = require('../middleware/authorize');
 
-router.get('/drivers', authenticate, isAdmin, ctrl.getDrivers);
-router.get('/teams', authenticate, isAdmin, ctrl.getTeams);
-router.post('/sync', authenticate, isAdmin, ctrl.syncF1);
+// Все админ-роуты защищены (эпик-09, Phase 10)
+router.use(authenticate, isAdmin);
+
+router.get('/drivers', ctrl.getDrivers);
+router.get('/teams', ctrl.getTeams);
+router.post('/sync', ctrl.syncF1);
 
 module.exports = router;

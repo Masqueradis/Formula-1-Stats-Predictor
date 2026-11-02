@@ -5,6 +5,7 @@ import NewsCard from './NewsCard'
 import Card from '../../components/ui/Card'
 import Spinner from '../../components/ui/Spinner'
 import Select from '../../components/ui/Select'
+import Input from '../../components/ui/Input'
 import Button from '../../components/ui/Button'
 
 const PAGE_SIZE = 12
@@ -27,6 +28,16 @@ export default function NewsList() {
   const lang = searchParams.get('lang') || ''
   const driverId = searchParams.get('driverId') || ''
   const teamId = searchParams.get('teamId') || ''
+  // Архив в Postgres (эпик-09, P4): режим + полнотекстовый поиск/даты
+  const mode = searchParams.get('mode') === 'archive' ? 'archive' : 'live'
+  const q = searchParams.get('q') || ''
+  const from = searchParams.get('from') || ''
+  const to = searchParams.get('to') || ''
+  const [archiveForm, setArchiveForm] = useState({ q, from, to })
+
+  useEffect(() => {
+    setArchiveForm({ q, from, to })
+  }, [q, from, to])
 
   useEffect(() => {
     let cancelled = false
@@ -45,17 +56,29 @@ export default function NewsList() {
       setIsLoading(true)
       setIsError(false)
       try {
-        const { data: response } = await api.get('/news', {
-          params: {
-            page,
-            limit: PAGE_SIZE,
-            source: source || undefined,
-            lang: lang || undefined,
-            driverId: driverId || undefined,
-            teamId: teamId || undefined,
-          },
-        })
-        if (!cancelled) setData(response.data)
+        const response = mode === 'archive'
+          ? await api.get('/news/archive', {
+            params: {
+              page,
+              limit: PAGE_SIZE,
+              q: q || undefined,
+              from: from || undefined,
+              to: to || undefined,
+            },
+          })
+          : await api.get('/news', {
+            params: {
+              page,
+              limit: PAGE_SIZE,
+              source: source || undefined,
+              lang: lang || undefined,
+              driverId: driverId || undefined,
+              teamId: teamId || undefined,
+              from: from || undefined,
+              to: to || undefined,
+            },
+          })
+        if (!cancelled) setData(response.data.data)
       } catch {
         if (!cancelled) setIsError(true)
       } finally {
@@ -65,7 +88,7 @@ export default function NewsList() {
 
     load()
     return () => { cancelled = true }
-  }, [page, source, lang, driverId, teamId, reloadKey])
+  }, [mode, page, source, lang, driverId, teamId, q, from, to, reloadKey])
 
   const updateParam = (key, value) => {
     const next = new URLSearchParams(searchParams)
@@ -77,7 +100,31 @@ export default function NewsList() {
 
   const resetFilters = () => setSearchParams(new URLSearchParams())
 
-  const hasFilters = Boolean(source || lang || driverId || teamId)
+  // Переключение «Лента ↔ Архив» (архив — поиск по сохранённым в Postgres новостям)
+  const switchMode = (next) => {
+    const params = new URLSearchParams(searchParams)
+    if (next === 'archive') params.set('mode', 'archive')
+    else params.delete('mode')
+    params.delete('page')
+    setSearchParams(params)
+  }
+
+  const applyArchive = (event) => {
+    event.preventDefault()
+    const params = new URLSearchParams(searchParams)
+    params.set('mode', 'archive')
+    const term = archiveForm.q.trim()
+    if (term) params.set('q', term)
+    else params.delete('q')
+    if (archiveForm.from) params.set('from', archiveForm.from)
+    else params.delete('from')
+    if (archiveForm.to) params.set('to', archiveForm.to)
+    else params.delete('to')
+    params.delete('page')
+    setSearchParams(params)
+  }
+
+  const hasFilters = Boolean(source || lang || driverId || teamId || q || from || to)
 
   if (isError) {
     return (
@@ -94,54 +141,109 @@ export default function NewsList() {
 
   return (
     <div className="space-y-5">
-      <Card className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Select
-          label="Пилот"
-          value={driverId}
-          onChange={(e) => updateParam('driverId', e.target.value)}
-        >
-          <option value="">Все пилоты</option>
-          {drivers.map((d) => (
-            <option key={d.id} value={d.id}>{driverLabel(d)}</option>
-          ))}
-        </Select>
+      <Card className="space-y-3 p-4">
+        <div className="flex gap-2">
+          <Button
+            size="xs"
+            variant={mode === 'live' ? 'primary' : 'outline'}
+            onClick={() => switchMode('live')}
+          >
+            Лента
+          </Button>
+          <Button
+            size="xs"
+            variant={mode === 'archive' ? 'primary' : 'outline'}
+            onClick={() => switchMode('archive')}
+          >
+            Архив
+          </Button>
+        </div>
 
-        <Select
-          label="Команда"
-          value={teamId}
-          onChange={(e) => updateParam('teamId', e.target.value)}
-        >
-          <option value="">Все команды</option>
-          {teams.map((t) => (
-            <option key={t.id} value={t.id}>{t.name}</option>
-          ))}
-        </Select>
+        {mode === 'live' ? (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <Select
+              label="Пилот"
+              value={driverId}
+              onChange={(e) => updateParam('driverId', e.target.value)}
+            >
+              <option value="">Все пилоты</option>
+              {drivers.map((d) => (
+                <option key={d.id} value={d.id}>{driverLabel(d)}</option>
+              ))}
+            </Select>
 
-        <Select
-          label="Источник"
-          value={source}
-          onChange={(e) => updateParam('source', e.target.value)}
-        >
-          <option value="">Все источники</option>
-          {(data?.sources || []).map((s) => (
-            <option key={s.id} value={s.id}>{s.name}</option>
-          ))}
-        </Select>
+            <Select
+              label="Команда"
+              value={teamId}
+              onChange={(e) => updateParam('teamId', e.target.value)}
+            >
+              <option value="">Все команды</option>
+              {teams.map((t) => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+            </Select>
 
-        <Select
-          label="Язык"
-          value={lang}
-          onChange={(e) => updateParam('lang', e.target.value)}
-        >
-          <option value="">Все языки</option>
-          <option value="ru">Русский</option>
-          <option value="en">English</option>
-        </Select>
+            <Select
+              label="Источник"
+              value={source}
+              onChange={(e) => updateParam('source', e.target.value)}
+            >
+              <option value="">Все источники</option>
+              {(data?.sources || []).map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </Select>
+
+            <Select
+              label="Язык"
+              value={lang}
+              onChange={(e) => updateParam('lang', e.target.value)}
+            >
+              <option value="">Все языки</option>
+              <option value="ru">Русский</option>
+              <option value="en">English</option>
+            </Select>
+
+            <Input
+              label="С даты"
+              type="date"
+              value={from}
+              onChange={(e) => updateParam('from', e.target.value)}
+            />
+
+            <Input
+              label="По дату"
+              type="date"
+              value={to}
+              onChange={(e) => updateParam('to', e.target.value)}
+            />
+          </div>
+        ) : (
+          <form className="grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-4" onSubmit={applyArchive}>
+            <Input
+              label="Поиск по словам"
+              value={archiveForm.q}
+              placeholder="Например: Verstappen"
+              onChange={(e) => setArchiveForm({ ...archiveForm, q: e.target.value })}
+            />
+            <Input
+              label="С даты"
+              type="date"
+              value={archiveForm.from}
+              onChange={(e) => setArchiveForm({ ...archiveForm, from: e.target.value })}
+            />
+            <Input
+              label="По дату"
+              type="date"
+              value={archiveForm.to}
+              onChange={(e) => setArchiveForm({ ...archiveForm, to: e.target.value })}
+            />
+            <Button type="submit" size="sm">Найти</Button>
+          </form>
+        )}
 
         {hasFilters && (
-          <div className="sm:col-span-2 lg:col-span-4">
-            <Button size="xs" variant="ghost" onClick={resetFilters}>Сбросить фильтры</Button>
-          </div>
+          <Button size="xs" variant="ghost" onClick={resetFilters}>Сбросить фильтры</Button>
         )}
       </Card>
 

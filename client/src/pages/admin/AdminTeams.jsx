@@ -6,7 +6,7 @@ import Card from '../../components/ui/Card'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import Input from '../../components/ui/Input'
 import Spinner from '../../components/ui/Spinner'
-import { useToast } from '../../components/ui/Toast'
+import { useToast } from '../../components/ui/useToast'
 
 const EMPTY_FORM = {
   name: '',
@@ -32,10 +32,6 @@ export default function AdminTeams() {
   const [confirm, setConfirm] = useState(null)
   const [pendingId, setPendingId] = useState(null)
 
-  useEffect(() => {
-    loadTeams()
-  }, [])
-
   const loadTeams = useCallback(async () => {
     setLoading(true)
     setError('')
@@ -47,6 +43,10 @@ export default function AdminTeams() {
     }
     setLoading(false)
   }, [])
+
+  useEffect(() => {
+    loadTeams()
+  }, [loadTeams])
 
   const visibleTeams = useMemo(() => {
     if (filter === 'active') return teams.filter(t => t.isActive !== false)

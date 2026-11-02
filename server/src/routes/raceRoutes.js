@@ -4,6 +4,7 @@ const { authenticate } = require('../middleware/authenticate');
 const { isAdmin } = require('../middleware/authorize');
 
 router.get('/', ctrl.getAll);
+router.get('/:id/weather', ctrl.getWeather);
 router.get('/:id', ctrl.getById);
 router.post('/', authenticate, isAdmin, ctrl.create);
 router.put('/:id', authenticate, isAdmin, ctrl.update);
