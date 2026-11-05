@@ -11,14 +11,14 @@
  */
 
 const jolpicaClient = require('../clients/jolpicaClient');
+const cacheService = require('../cache/cacheService');
+const cacheKeys = require('../cache/keys');
 const { Driver, Race, RaceResult } = require('../models');
 const { parseId } = require('./crudService');
 
 const PAGE_LIMIT = 100;
 const MAX_PAGES = 10;
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
-
-const cache = new Map();
 
 function emptySeason(season) {
   return { season, starts: 0, wins: 0, podiums: 0, points: 0 };
@@ -131,9 +131,10 @@ async function getCareer(rawId) {
   const driver = await Driver.findByPk(driverId);
   if (!driver) return { error: 'driver not found', status: 404 };
 
-  const cached = driver.externalId ? cache.get(driver.externalId) : null;
-  if (cached && cached.expiresAt > Date.now()) {
-    return { ...cached.payload, cached: true };
+  const cacheKey = driver.externalId ? cacheKeys.career(driver.externalId) : null;
+  const cached = cacheKey ? await cacheService.get(cacheKey) : null;
+  if (cached) {
+    return { ...cached, cached: true };
   }
 
   let source = 'local';
@@ -168,8 +169,8 @@ async function getCareer(rawId) {
     cached: false,
   };
 
-  if (source === 'jolpica') {
-    cache.set(driver.externalId, { payload, expiresAt: Date.now() + CACHE_TTL_MS });
+  if (source === 'jolpica' && cacheKey) {
+    await cacheService.set(cacheKey, payload, CACHE_TTL_MS);
   }
 
   return payload;
@@ -177,4 +178,6 @@ async function getCareer(rawId) {
 
 module.exports = { getCareer, aggregate };
 
-module.exports.__resetCache = () => cache.clear();
+module.exports.__resetCache = async () => {
+  await cacheService.delByPrefix(cacheKeys.prefixes.career);
+};

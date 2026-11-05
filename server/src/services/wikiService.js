@@ -1,6 +1,8 @@
 'use strict';
 
 const driverRepository = require('../repositories/driverRepository');
+const cacheService = require('../cache/cacheService');
+const cacheKeys = require('../cache/keys');
 const logger = require('../utils/logger');
 
 /**
@@ -19,8 +21,6 @@ const logger = require('../utils/logger');
 const SUMMARY_TIMEOUT_MS = 8000;
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const MAX_EXTRACT_LENGTH = 1200;
-
-const cache = new Map();
 
 function httpError(status, message) {
   const err = new Error(message);
@@ -94,9 +94,10 @@ async function getDriverWiki(rawId) {
   const driver = await driverRepository.findByIdWithDetails(id);
   if (!driver) return { error: 'driver not found', status: 404 };
 
-  const cached = cache.get(id);
-  if (cached && Date.now() - cached.fetchedAt < CACHE_TTL_MS) {
-    return { ...cached.data, cached: true };
+  const cacheKey = cacheKeys.wiki(id);
+  const cached = await cacheService.get(cacheKey);
+  if (cached) {
+    return { ...cached, cached: true };
   }
 
   const fullName = `${driver.firstName} ${driver.lastName}`.trim();
@@ -130,7 +131,7 @@ async function getDriverWiki(rawId) {
     cached: false,
   };
 
-  cache.set(id, { data, fetchedAt: Date.now() });
+  await cacheService.set(cacheKey, data, CACHE_TTL_MS);
   logger.info('wiki.fetched', { driverId: id, lang: data.lang, hasThumbnail: Boolean(data.thumbnail) });
   return data;
 }

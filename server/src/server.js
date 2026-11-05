@@ -5,6 +5,7 @@ const app = require('./app');
 const db = require('./models');
 const { connectMongo } = require('./config/mongo');
 const realtime = require('./realtime/io');
+const redisClient = require('./cache/redisClient');
 
 const PORT = process.env.PORT || 3000;
 
@@ -17,6 +18,16 @@ db.sequelize.sync().then(() => {
     console.log(`F1 Stats server running on http://localhost:${PORT}`);
     console.log(`Socket.IO ready on ws://localhost:${PORT}/socket.io`);
   });
+
+  // Аккуратно закрываем Redis-клиент при остановке контейнера/процесса.
+  const shutdown = () => {
+    redisClient
+      .close()
+      .catch(() => {})
+      .finally(() => process.exit(0));
+  };
+  process.once('SIGTERM', shutdown);
+  process.once('SIGINT', shutdown);
 
   // Не блокирует старт: при недоступности Mongo сервер работает (503 на /api/predictions)
   const mongoReady = connectMongo();

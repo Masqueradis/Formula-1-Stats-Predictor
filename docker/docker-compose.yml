@@ -60,6 +60,25 @@ services:
     networks:
       - backend
 
+  # ─── Redis (эпик-11): кэш, rate limit, Socket.IO adapter ───────────
+  # Порт опубликован только на localhost — для redis-cli с хоста.
+  redis:
+    image: redis:7-alpine
+    container_name: f1stats-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - backend
+
   # ─── Backend (прод) ────────────────────────────────────────────────
   # Порт на хост НЕ пробрасывается (решение сессии): доступ только через
   # nginx-прокси frontend (/api, /socket.io).
@@ -78,6 +97,9 @@ services:
       CORS_ORIGINS: http://localhost,http://localhost:5173
       FRONTEND_URL: http://localhost
       JWT_SECRET: ${JWT_SECRET:-dev-f1-secret-change-in-production}
+      # Redis (эпик-11): общий кэш, rate limit, Socket.IO adapter
+      REDIS_URL: redis://redis:6379
+      REDIS_ENABLED: ${REDIS_ENABLED:-true}
       # production-секция config.json включает SSL для postgres — в контейнере его нет
       NODE_ENV: development
       PORT: "3000"
@@ -85,6 +107,8 @@ services:
       postgres:
         condition: service_healthy
       mongo:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       # node:22 умеет fetch — curl/wget в alpine-образе нет
@@ -134,6 +158,8 @@ services:
       CORS_ORIGINS: http://localhost,http://localhost:5173
       FRONTEND_URL: http://localhost:5173
       JWT_SECRET: ${JWT_SECRET:-dev-f1-secret-change-in-production}
+      REDIS_URL: redis://redis:6379
+      REDIS_ENABLED: ${REDIS_ENABLED:-true}
       NODE_ENV: development
       PORT: "3000"
     volumes:
@@ -144,6 +170,8 @@ services:
       postgres:
         condition: service_healthy
       mongo:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     networks:
       - frontend
@@ -233,5 +261,6 @@ networks:
 volumes:
   pgdata:
   mongodata:
+  redisdata:
   lokidata:
   grafanadata:

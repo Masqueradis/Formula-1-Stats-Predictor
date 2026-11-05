@@ -33,9 +33,9 @@ function page(races, total) {
   return { MRData: { total: String(total), RaceTable: { Races: races } } };
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   jest.clearAllMocks();
-  careerService.__resetCache();
+  await careerService.__resetCache();
 });
 
 describe('careerService.aggregate', () => {

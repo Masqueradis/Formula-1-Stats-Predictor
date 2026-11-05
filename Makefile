@@ -4,14 +4,14 @@ COMPOSE_ALL = $(COMPOSE) --profile dev
 DGREEN := \033[32m
 RESET := \033[0m
 
-.PHONY: help up app dev down stop logs logs-dev psql mongo mailhog migrate seed seedmongo reset sync
+.PHONY: help up app dev down stop logs logs-dev psql mongo redis mailhog migrate seed seedmongo reset sync
 
 help: ## Показать все команды
 	@echo "$(DGREEN)Доступные команды:$(RESET)"
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
 
-up: ## Поднять только инфраструктуру (БД + Mailhog)
-	$(COMPOSE) up -d postgres mongo mailhog
+up: ## Поднять только инфраструктуру (БД + Redis + Mailhog)
+	$(COMPOSE) up -d postgres mongo redis mailhog
 
 app: ## Прод-стек как в лабе 8: backend + frontend (nginx) + БД
 	$(COMPOSE) up -d --build
@@ -36,6 +36,9 @@ psql: ## Открыть psql в контейнере БД
 
 mongo: ## Открыть mongosh в контейнере MongoDB
 	$(COMPOSE) exec mongo mongosh $${MONGO_URI:-mongodb://localhost:27017/f1stats}
+
+redis: ## Открыть redis-cli в контейнере Redis
+	$(COMPOSE) exec redis redis-cli
 
 mailhog: ## Открыть web-интерфейс Mailhog
 	@xdg-open http://localhost:8025 >/dev/null 2>&1 || open http://localhost:8025 || echo "Открой в браузере: http://localhost:8025"

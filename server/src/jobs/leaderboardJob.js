@@ -14,6 +14,7 @@ require('../config/env');
 
 const cron = require('node-cron');
 const { recalculate } = require('../services/leaderboardService');
+const { invalidateApiCache } = require('../cache/invalidate');
 const realtime = require('../realtime/io');
 
 function isEnabled() {
@@ -27,6 +28,7 @@ async function run(trigger) {
     const summary = await recalculate();
     if (summary.votes > 0) {
       console.log(`[leaderboardJob] ${trigger}: scored ${summary.votes} vote(s) in ${summary.races} race(s)`);
+      await invalidateApiCache();
       realtime.emitLeaderboard({ action: trigger, ...summary });
       realtime.emitStandings({ action: 'leaderboard-recalc', ...summary });
     }

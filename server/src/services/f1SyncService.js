@@ -4,6 +4,7 @@ const { Op } = require('sequelize');
 const { Team, Driver, Race, SeasonTeam, RaceResult, sequelize } = require('../models');
 const { TEAM_META } = require('../data/teamMeta');
 const jolpica = require('../clients/jolpicaClient');
+const { invalidateApiCache } = require('../cache/invalidate');
 
 function today() {
   return new Date().toISOString().slice(0, 10);
@@ -378,6 +379,8 @@ async function syncSeason(rawSeason, options = {}) {
   }
 
   summary.statusChanges = statusChanges;
+  // После синка публичные GET-ответы устарели — сбрасываем HTTP-кэш.
+  await invalidateApiCache();
   return summary;
 }
 

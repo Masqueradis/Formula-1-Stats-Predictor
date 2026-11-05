@@ -5,6 +5,8 @@ const path = require('path');
 const { XMLParser } = require('fast-xml-parser');
 const { Driver, Team } = require('../models');
 const newsItemRepository = require('../repositories/newsItemRepository');
+const cacheService = require('../cache/cacheService');
+const cacheKeys = require('../cache/keys');
 const logger = require('../utils/logger');
 
 const parser = new XMLParser({
@@ -79,11 +81,6 @@ const DEFAULT_LIMIT = 12;
 const MAX_LIMIT = 48;
 const MAX_DESCRIPTION_LENGTH = 200;
 const MIN_KEYWORD_LENGTH = 3;
-
-const cache = {
-  items: null,
-  fetchedAt: 0,
-};
 
 async function fetchXml(url) {
   const controller = new AbortController();
@@ -264,8 +261,16 @@ function writeDiskCache(items, fetchedAt) {
 
 async function loadPool() {
   const now = Date.now();
-  if (cache.items && now - cache.fetchedAt < CACHE_TTL_MS) {
-    return { items: cache.items, fetchedAt: cache.fetchedAt, cached: true };
+  const cacheKey = cacheKeys.newsPool();
+  const cached = await cacheService.get(cacheKey);
+
+  if (
+    cached &&
+    Array.isArray(cached.items) &&
+    cached.items.length &&
+    now - Number(cached.fetchedAt || 0) < CACHE_TTL_MS
+  ) {
+    return { items: cached.items, fetchedAt: Number(cached.fetchedAt) || 0, cached: true };
   }
 
   let fresh = [];
@@ -276,8 +281,7 @@ async function loadPool() {
   }
 
   if (fresh.length) {
-    cache.items = fresh;
-    cache.fetchedAt = now;
+    await cacheService.set(cacheKey, { items: fresh, fetchedAt: now }, CACHE_TTL_MS);
     writeDiskCache(fresh, now);
     // Архив в Postgres (эпик-09, P4): сбой записи не должен ломать ленту
     await newsItemRepository.upsertMany(fresh)
@@ -285,14 +289,13 @@ async function loadPool() {
     return { items: fresh, fetchedAt: now, cached: false };
   }
 
-  if (cache.items) {
-    return { items: cache.items, fetchedAt: cache.fetchedAt, cached: true, stale: true };
+  if (cached && Array.isArray(cached.items) && cached.items.length) {
+    return { items: cached.items, fetchedAt: Number(cached.fetchedAt) || 0, cached: true, stale: true };
   }
 
   const disk = readDiskCache();
   if (disk) {
-    cache.items = disk.items;
-    cache.fetchedAt = disk.fetchedAt;
+    await cacheService.set(cacheKey, { items: disk.items, fetchedAt: disk.fetchedAt }, CACHE_TTL_MS);
     return { items: disk.items, fetchedAt: disk.fetchedAt, cached: true, stale: true };
   }
 

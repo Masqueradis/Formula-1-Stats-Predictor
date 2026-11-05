@@ -1,6 +1,7 @@
 'use strict';
 
 const { syncSeason } = require('../services/f1SyncService');
+const jolpicaClient = require('../clients/jolpicaClient');
 const driverService = require('../services/driverService');
 const teamService = require('../services/teamService');
 const apiResponse = require('../utils/apiResponse');
@@ -9,6 +10,8 @@ const realtime = require('../realtime/io');
 async function syncF1(req, res) {
   const season = Number(req.body?.season) || Number(process.env.SYNC_SEASON) || new Date().getFullYear();
   try {
+    // Ручной синк не должен получать закэшированные ответы предыдущего прогона.
+    await jolpicaClient.clearCache();
     const summary = await syncSeason(season);
     // Live-рассылка: таблицы обновились + push о смене статуса гонок (лаба 7)
     realtime.emitStandings({ action: 'sync', season });

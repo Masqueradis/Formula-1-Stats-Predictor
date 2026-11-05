@@ -2,6 +2,7 @@ const { SeasonTeam, Team } = require('../models');
 const driverRepository = require('../repositories/driverRepository');
 const { parseId } = require('./crudService');
 const { sanitizeDriver } = require('../utils/serializers');
+const { invalidateApiCache } = require('../cache/invalidate');
 
 const CURRENT_SEASON_DEFAULT = 2026;
 
@@ -68,6 +69,7 @@ async function create(data) {
   });
 
   await syncDriverTeam(record.id, data.teamId);
+  await invalidateApiCache();
 
   const full = await driverRepository.findByIdWithDetails(record.id, { includeInactive: true });
   return sanitizeDriver(full);
@@ -91,6 +93,7 @@ async function update(rawId, data) {
   if (!updated) return { error: 'driver not found', status: 404 };
 
   await syncDriverTeam(id, data.teamId);
+  await invalidateApiCache();
 
   const full = await driverRepository.findByIdWithDetails(id, { includeInactive: true });
   return sanitizeDriver(full);
@@ -119,6 +122,7 @@ module.exports = {
     }
 
     await driverRepository.removeWithRelations(id);
+    await invalidateApiCache();
 
     return true;
   },

@@ -1,8 +1,12 @@
 const router = require('express').Router();
 const ctrl = require('../controllers/historyController');
+const cacheResponse = require('../middleware/cacheResponse');
 
-router.get('/seasons', ctrl.getSeasons);
-router.get('/races', ctrl.getRaces);
-router.get('/races/:id', ctrl.getRace);
+// История меняется только после синка/CRUD — 10 минут кэша с инвалидацией.
+const cache = cacheResponse(10 * 60 * 1000);
+
+router.get('/seasons', cache, ctrl.getSeasons);
+router.get('/races', cache, ctrl.getRaces);
+router.get('/races/:id', cache, ctrl.getRace);
 
 module.exports = router;

@@ -6,7 +6,9 @@ const DEFAULT_TTL_MS = 10 * 60 * 1000;
 const MIN_INTERVAL_MS = 260;
 const MAX_RETRIES = 3;
 
-const cache = new Map();
+const cacheService = require('../cache/cacheService');
+const cacheKeys = require('../cache/keys');
+
 let lastRequestAt = 0;
 let queue = Promise.resolve();
 
@@ -51,10 +53,10 @@ async function fetchJson(url, { timeout = DEFAULT_TIMEOUT_MS } = {}) {
 
 async function getJson(path, { ttl = DEFAULT_TTL_MS, timeout, retries = MAX_RETRIES } = {}) {
   const url = `${baseUrl()}${path.startsWith('/') ? path : `/${path}`}`;
-  const now = Date.now();
-  const cached = cache.get(url);
-  if (cached && cached.expiresAt > now) {
-    return cached.value;
+  const cacheKey = cacheKeys.jolpica(url);
+  const cached = await cacheService.get(cacheKey);
+  if (cached !== null && cached !== undefined) {
+    return cached;
   }
 
   let attempt = 0;
@@ -62,7 +64,7 @@ async function getJson(path, { ttl = DEFAULT_TTL_MS, timeout, retries = MAX_RETR
     await throttle();
     try {
       const value = await fetchJson(url, { timeout });
-      cache.set(url, { value, expiresAt: Date.now() + ttl });
+      await cacheService.set(cacheKey, value, ttl);
       return value;
     } catch (err) {
       attempt += 1;
@@ -74,8 +76,8 @@ async function getJson(path, { ttl = DEFAULT_TTL_MS, timeout, retries = MAX_RETR
   }
 }
 
-function clearCache() {
-  cache.clear();
+async function clearCache() {
+  await cacheService.delByPrefix(cacheKeys.prefixes.jolpica);
 }
 
 module.exports = { getJson, clearCache, baseUrl };

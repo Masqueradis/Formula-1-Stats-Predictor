@@ -1,6 +1,8 @@
 'use strict';
 
 const raceRepository = require('../repositories/raceRepository');
+const cacheService = require('../cache/cacheService');
+const cacheKeys = require('../cache/keys');
 const logger = require('../utils/logger');
 
 /**
@@ -47,7 +49,6 @@ const WEATHER_CODES = {
 };
 
 // Ключ → { date } — погода «на дату гонки», обновляется не чаще раза в 30 мин
-const cache = new Map();
 
 function httpError(status, message) {
   const err = new Error(message);
@@ -115,10 +116,10 @@ async function getRaceWeather(rawRaceId) {
     throw httpError(404, 'Forecast is not available this far ahead (Open-Meteo covers 16 days)');
   }
 
-  const cacheKey = `${id}:${race.date}`;
-  const cached = cache.get(cacheKey);
-  if (cached && Date.now() - cached.fetchedAt < CACHE_TTL_MS) {
-    return { ...cached.data, cached: true };
+  const cacheKey = cacheKeys.weather(id, race.date);
+  const cached = await cacheService.get(cacheKey);
+  if (cached) {
+    return { ...cached, cached: true };
   }
 
   let forecast;
@@ -146,7 +147,7 @@ async function getRaceWeather(rawRaceId) {
     cached: false,
   };
 
-  cache.set(cacheKey, { data, fetchedAt: Date.now() });
+  await cacheService.set(cacheKey, data, CACHE_TTL_MS);
   logger.info('weather.fetched', { raceId: id, date: race.date, weatherCode: forecast.weatherCode });
   return data;
 }

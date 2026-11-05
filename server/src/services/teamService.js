@@ -1,6 +1,7 @@
 const { buildCrudService, parseId } = require('./crudService');
 const teamRepository = require('../repositories/teamRepository');
 const { Team, SeasonTeam, RaceResult, sequelize } = require('../models');
+const { invalidateApiCache } = require('../cache/invalidate');
 
 const baseService = buildCrudService({
   repository: teamRepository,
@@ -70,6 +71,7 @@ async function getById(rawId, rawSeason) {
 
 async function create(data) {
   const record = await teamRepository.create(whitelist(data));
+  await invalidateApiCache();
   const season = await currentSeason();
   const full = await teamRepository.findByIdWithDetails(record.id, season, { includeInactive: true });
   return sanitizeTeam(full || record, season);
@@ -80,6 +82,7 @@ async function update(rawId, data) {
   if (id === null) return { error: 'Invalid id' };
   const updated = await teamRepository.update(id, whitelist(data));
   if (!updated) return { error: 'team not found', status: 404 };
+  await invalidateApiCache();
   const season = await currentSeason();
   const full = await teamRepository.findByIdWithDetails(id, season, { includeInactive: true });
   return sanitizeTeam(full, season);
@@ -107,6 +110,7 @@ async function remove(rawId) {
     await Team.destroy({ where: { id }, transaction: t });
   });
 
+  await invalidateApiCache();
   return true;
 }
 
