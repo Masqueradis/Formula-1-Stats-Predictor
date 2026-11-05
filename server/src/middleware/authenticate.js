@@ -1,8 +1,13 @@
 const jwt = require('jsonwebtoken');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
+const JWT_SECRET = process.env.JWT_SECRET;
 
 function authenticate(req, res, next) {
+  if (!JWT_SECRET) {
+    console.error('JWT_SECRET is not set in environment variables');
+    return res.status(500).json({ success: false, error: 'Server configuration error' });
+  }
+
   const header = req.headers.authorization;
   if (!header || !header.startsWith('Bearer ')) {
     return res.status(401).json({ success: false, error: 'Missing or invalid Authorization header' });

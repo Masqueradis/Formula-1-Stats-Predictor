@@ -155,10 +155,12 @@ async function getNextProbabilities() {
   const circuitByDriver = groupByDriver(circuitResults);
 
   // У пилота может быть несколько строк состава за сезон (напр. Lawson 2026: Racing Bulls + Red Bull) —
-  // дедуплицируем по driverId, команда берётся из последней строки (roster отсортирован по id ASC),
-  // как это делает standingsService.
+  // дедуплицируем по driverId, команда берётся из последней строки по id SeasonTeam.
+  const sortedRoster = Array.isArray(roster)
+    ? [...roster].sort((a, b) => Number(a.id || 0) - Number(b.id || 0))
+    : roster;
   const rosterByDriver = new Map();
-  for (const st of roster) {
+  for (const st of sortedRoster) {
     const driver = st.driver;
     const team = st.team;
     if (!driver || driver.isActive === false) continue;

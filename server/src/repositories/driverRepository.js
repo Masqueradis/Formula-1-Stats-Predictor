@@ -1,4 +1,4 @@
-const { Driver, SeasonTeam } = require('../models');
+const { Driver, SeasonTeam, RaceResult, sequelize } = require('../models');
 const { Op } = require('sequelize');
 const { buildCrudRepository } = require('./crudRepository');
 
@@ -62,9 +62,22 @@ async function create(data, options = {}) {
   });
 }
 
+async function countResults(driverId) {
+  return RaceResult.count({ where: { driverId } });
+}
+
+async function removeWithRelations(driverId) {
+  await sequelize.transaction(async (t) => {
+    await SeasonTeam.destroy({ where: { driverId }, transaction: t });
+    await Driver.destroy({ where: { id: driverId }, transaction: t });
+  });
+}
+
 module.exports = {
   ...base,
   findAllWithOptions,
   findByIdWithDetails,
   create,
+  countResults,
+  removeWithRelations,
 };

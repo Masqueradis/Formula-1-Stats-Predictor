@@ -5,8 +5,10 @@ function notFound(req, res, next) {
   });
 }
 
+const logger = require('../utils/logger');
+
 function errorHandler(err, req, res, next) {
-  console.error(err.stack);
+  logger.error('http.error', { message: err.message, stack: err.stack });
 
   if (err.name === 'SequelizeForeignKeyConstraintError') {
     return res.status(409).json({

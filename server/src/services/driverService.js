@@ -1,30 +1,9 @@
-const { SeasonTeam, Team, Driver, RaceResult, sequelize } = require('../models');
+const { SeasonTeam, Team } = require('../models');
 const driverRepository = require('../repositories/driverRepository');
 const { parseId } = require('./crudService');
+const { sanitizeDriver } = require('../utils/serializers');
 
 const CURRENT_SEASON_DEFAULT = 2026;
-
-function sanitizeDriver(record) {
-  const json = typeof record.toJSON === 'function' ? record.toJSON() : record;
-  const { seasonTeams, ...rest } = json;
-
-  let team = null;
-  let teamSeason = null;
-  if (Array.isArray(seasonTeams) && seasonTeams.length) {
-    const last = seasonTeams[seasonTeams.length - 1];
-    team = last.team || null;
-    teamSeason = last.season ?? null;
-  } else if (seasonTeams && seasonTeams.team) {
-    team = seasonTeams.team;
-    teamSeason = seasonTeams.season ?? null;
-  }
-
-  if (team) {
-    team = { id: team.id, name: team.name, color: team.color };
-  }
-
-  return { ...rest, team, teamSeason };
-}
 
 function clean(record) {
   if (Array.isArray(record)) return record.map(sanitizeDriver);
@@ -126,10 +105,10 @@ module.exports = {
     const id = parseId(rawId);
     if (id === null) return { error: 'Invalid id' };
 
-    const driver = await Driver.findByPk(id);
+    const driver = await driverRepository.findById(id);
     if (!driver) return { error: 'driver not found', status: 404 };
 
-    const results = await RaceResult.count({ where: { driverId: id } });
+    const results = await driverRepository.countResults(id);
     if (results > 0) {
       return {
         error:
@@ -139,10 +118,7 @@ module.exports = {
       };
     }
 
-    await sequelize.transaction(async (t) => {
-      await SeasonTeam.destroy({ where: { driverId: id }, transaction: t });
-      await Driver.destroy({ where: { id }, transaction: t });
-    });
+    await driverRepository.removeWithRelations(id);
 
     return true;
   },

@@ -1,7 +1,7 @@
 'use strict';
 
 const { Op } = require('sequelize');
-const { Team, Driver, Race, SeasonTeam, RaceResult } = require('../models');
+const { Team, Driver, Race, SeasonTeam, RaceResult, sequelize } = require('../models');
 const { TEAM_META } = require('../data/teamMeta');
 const jolpica = require('../clients/jolpicaClient');
 
@@ -321,11 +321,22 @@ async function syncSeason(rawSeason, options = {}) {
     await collect(raceResults, 'race');
     await collect(sprintResults, 'sprint');
 
-    await RaceResult.destroy({ where: { raceId: raceRecord.id } });
-    if (rows.length) {
-      await RaceResult.bulkCreate(rows);
-      summary.results += rows.length;
+    // Атомарная замена результатов гонки: destroy + bulkCreate в одной транзакции,
+    // чтобы сбой между операциями не оставил гонку без результатов.
+    if (sequelize && typeof sequelize.transaction === 'function') {
+      await sequelize.transaction(async (t) => {
+        await RaceResult.destroy({ where: { raceId: raceRecord.id }, transaction: t });
+        if (rows.length) {
+          await RaceResult.bulkCreate(rows, { transaction: t });
+        }
+      });
+    } else {
+      await RaceResult.destroy({ where: { raceId: raceRecord.id } });
+      if (rows.length) {
+        await RaceResult.bulkCreate(rows);
+      }
     }
+    summary.results += rows.length;
 
     const status = rows.some((r) => r.sessionType === 'race') ? 'finished' : raceRecord.status;
     if (raceRecord.status !== status) {
