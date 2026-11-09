@@ -14,7 +14,18 @@
 
 const request = require('supertest');
 
-const BASE = process.env.TEST_API_URL || 'http://localhost:3000';
+/**
+ * Допускаем оба варианта из документации:
+ *   TEST_API_URL=http://localhost:3000
+ *   TEST_API_URL=http://localhost/api   (prod-стек через nginx)
+ * Пути в тестах всегда начинаются с /api, поэтому хвостовой /api убираем.
+ */
+function normalizeBaseUrl(raw) {
+  const trimmed = String(raw || '').trim().replace(/\/+$/, '');
+  return trimmed.endsWith('/api') ? trimmed.slice(0, -4) : trimmed;
+}
+
+const BASE = normalizeBaseUrl(process.env.TEST_API_URL || 'http://localhost:3000');
 const RUN = process.env.INTEGRATION === '1';
 
 const EMAIL = `jest-it-${Date.now()}@test.local`;
@@ -27,6 +38,36 @@ const maybe = RUN ? describe : describe.skip;
 
 maybe('API (integration)', () => {
   let token = null;
+
+  async function loginAsAdmin() {
+    const res = await request(BASE)
+      .post('/api/auth/login')
+      .send({ email: 'admin@f1stats.test', password: 'admin123' });
+    return res.status === 200 ? res.body.data.token : null;
+  }
+
+  // Интеграционные прогоны не должны оставлять мусор в users.
+  afterAll(async () => {
+    try {
+      const adminToken = await loginAsAdmin();
+      if (!adminToken) return;
+
+      const list = await request(BASE)
+        .get('/api/users')
+        .set('Authorization', `Bearer ${adminToken}`);
+      if (list.status !== 200 || !Array.isArray(list.body.data)) return;
+
+      const stale = list.body.data.filter((u) => /^jest-it-.*@test\.local$/.test(u.email || ''));
+      for (const user of stale) {
+        await request(BASE)
+          .delete(`/api/users/${user.id}`)
+          .set('Authorization', `Bearer ${adminToken}`);
+      }
+    } catch (err) {
+      // cleanup не должен маскировать результаты тестов
+      console.warn(`[integration] user cleanup skipped: ${err.message}`);
+    }
+  });
 
   test('GET /api/health → обе БД up', async () => {
     const res = await request(BASE).get('/api/health').expect(200);
@@ -125,6 +166,20 @@ maybe('API (integration)', () => {
       .send({ email: EMAIL, password: PASSWORD })
       .expect(403);
     expect(login.body.error).toMatch(/not verified/i);
+  });
+
+  test('GET /api/users не отдаёт passwordHash и verificationToken', async () => {
+    const adminToken = await loginAsAdmin();
+    expect(adminToken).toBeTruthy();
+
+    const res = await request(BASE)
+      .get('/api/users')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(200);
+    const payload = JSON.stringify(res.body);
+
+    expect(payload).not.toContain('passwordHash');
+    expect(payload).not.toContain('verificationToken');
   });
 
   test('неверный пароль на подтверждённом сид-пользователе → 401/403, токен не выдаётся', async () => {

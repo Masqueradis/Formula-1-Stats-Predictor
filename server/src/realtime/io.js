@@ -194,19 +194,29 @@ function init(httpServer) {
       });
     });
 
-    socket.on('disconnect', (reason) => {
+    socket.on('disconnect', async (reason) => {
       clearInterval(heartbeatTimer);
       const current = clients.get(socket.id);
       clients.delete(socket.id);
-      if (current?.raceId) leaveRace(socket, current.raceId, true);
 
-      presenceStore
-        .unregister(socket.id)
-        .catch(() => {})
-        .then(() => {
-          console.log(`[socket] disconnected ${socket.id} (${reason}) — ${clients.size} online`);
-          return broadcastPresence();
-        });
+      // Важно: сначала завершаем update(raceId:null), потом удаляем запись.
+      // Иначе hSet после hDel оставляет «фантом» в Redis (завышенный presence).
+      if (current?.raceId) {
+        try {
+          await leaveRace(socket, current.raceId, true);
+        } catch {
+          // presence не должен ломать обработку disconnect
+        }
+      }
+
+      try {
+        await presenceStore.unregister(socket.id);
+      } catch {
+        // fallback-режим / Redis недоступен — запись удалится cleanup-джобой
+      }
+
+      console.log(`[socket] disconnected ${socket.id} (${reason}) — ${clients.size} online`);
+      await broadcastPresence();
     });
 
     // Персональное приветствие текущим presence — сразу после регистрации обработчиков
@@ -249,7 +259,7 @@ function applyUsername(socket, username) {
   presenceStore.update(socket.id, { username }).catch(() => {});
 }
 
-function leaveRace(socket, rawRaceId, alreadyLeft = false) {
+async function leaveRace(socket, rawRaceId, alreadyLeft = false) {
   if (rawRaceId == null) return;
   const key = String(rawRaceId);
   const set = raceRooms.get(key);
@@ -260,13 +270,13 @@ function leaveRace(socket, rawRaceId, alreadyLeft = false) {
   const current = clients.get(socket.id);
   if (current) current.raceId = null;
 
-  presenceStore.update(socket.id, { raceId: null }).catch(() => {});
+  // Дожидаемся записи в presence до summary(), иначе счётчик читает старое состояние.
+  await presenceStore.update(socket.id, { raceId: null });
 
   if (!alreadyLeft) {
     socket.leave(`race:${key}`);
-    presenceSummary(key)
-      .then((summary) => socket.emit('race:presence', { raceId: key, ...summary }))
-      .catch(() => {});
+    const summary = await presenceSummary(key);
+    socket.emit('race:presence', { raceId: key, ...summary });
   }
 }
 

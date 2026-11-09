@@ -18,7 +18,22 @@ const KEY = cacheKeys.presence();
 
 // socketId -> entry (L1/fallback)
 const local = new Map();
+// socketId -> Promise: операции одного сокета выполняются строго по очереди,
+// иначе поздний update() может перезаписать уже удалённую запись (фантомы).
+const pending = new Map();
 let fallbackLogged = false;
+
+function enqueue(socketId, task) {
+  const previous = pending.get(socketId) || Promise.resolve();
+  const next = previous.catch(() => {}).then(task);
+  pending.set(socketId, next);
+  next
+    .finally(() => {
+      if (pending.get(socketId) === next) pending.delete(socketId);
+    })
+    .catch(() => {});
+  return next;
+}
 
 function warnFallback(err) {
   if (fallbackLogged) return;
@@ -37,51 +52,60 @@ function withTimestamp(data = {}) {
 }
 
 async function register(socketId, data = {}) {
-  const entry = withTimestamp(data);
-  local.set(socketId, entry);
+  return enqueue(socketId, async () => {
+    const entry = withTimestamp(data);
+    local.set(socketId, entry);
 
-  const client = await redisClient.getClient();
-  if (!client) return;
-  try {
-    await client.hSet(KEY, socketId, JSON.stringify(entry));
-  } catch (err) {
-    warnFallback(err);
-  }
+    const client = await redisClient.getClient();
+    if (!client) return;
+    try {
+      await client.hSet(KEY, socketId, JSON.stringify(entry));
+    } catch (err) {
+      warnFallback(err);
+    }
+  });
 }
 
 async function update(socketId, patch = {}) {
-  const current = local.get(socketId) || {};
-  const entry = withTimestamp({ ...current, ...patch });
-  local.set(socketId, entry);
+  return enqueue(socketId, async () => {
+    // Сокет уже отключён — запоздавший heartbeat/update не должен воскрешать запись.
+    if (!local.has(socketId)) return;
 
-  const client = await redisClient.getClient();
-  if (!client) return;
-  try {
-    const raw = await client.hGet(KEY, socketId);
-    let remote = {};
-    if (raw) {
-      try {
-        remote = JSON.parse(raw);
-      } catch {
-        remote = {};
+    const current = local.get(socketId) || {};
+    const entry = withTimestamp({ ...current, ...patch });
+    local.set(socketId, entry);
+
+    const client = await redisClient.getClient();
+    if (!client) return;
+    try {
+      const raw = await client.hGet(KEY, socketId);
+      let remote = {};
+      if (raw) {
+        try {
+          remote = JSON.parse(raw);
+        } catch {
+          remote = {};
+        }
       }
+      await client.hSet(KEY, socketId, JSON.stringify(withTimestamp({ ...remote, ...entry })));
+    } catch (err) {
+      warnFallback(err);
     }
-    await client.hSet(KEY, socketId, JSON.stringify(withTimestamp({ ...remote, ...entry })));
-  } catch (err) {
-    warnFallback(err);
-  }
+  });
 }
 
 async function unregister(socketId) {
-  local.delete(socketId);
+  return enqueue(socketId, async () => {
+    local.delete(socketId);
 
-  const client = await redisClient.getClient();
-  if (!client) return;
-  try {
-    await client.hDel(KEY, socketId);
-  } catch (err) {
-    warnFallback(err);
-  }
+    const client = await redisClient.getClient();
+    if (!client) return;
+    try {
+      await client.hDel(KEY, socketId);
+    } catch (err) {
+      warnFallback(err);
+    }
+  });
 }
 
 async function heartbeat(socketId) {
@@ -165,6 +189,7 @@ async function cleanup() {
 
 function __reset() {
   local.clear();
+  pending.clear();
   fallbackLogged = false;
 }
 

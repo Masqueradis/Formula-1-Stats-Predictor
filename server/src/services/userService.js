@@ -5,7 +5,7 @@ const teamRepository = require('../repositories/teamRepository');
 
 function sanitizeUser(u) {
   const json = typeof u.toJSON === 'function' ? u.toJSON() : u;
-  const { passwordHash, ...rest } = json;
+  const { passwordHash, verificationToken, ...rest } = json;
   return rest;
 }
 

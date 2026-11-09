@@ -5,6 +5,7 @@
  */
 
 const presenceStore = require('../src/realtime/presenceStore');
+const redisClient = require('../src/cache/redisClient');
 
 let now = 1_700_000_000_000;
 
@@ -65,5 +66,70 @@ describe('presenceStore (in-memory fallback)', () => {
 
     const summary = await presenceStore.summary();
     expect(summary.connections).toBe(1);
+  });
+
+  test('запоздавший update после unregister не воскрешает запись', async () => {
+    await presenceStore.register('s1', { userId: 1, raceId: '2026-5' });
+    await presenceStore.unregister('s1');
+
+    // эмулирует heartbeat/leave, пришедший после disconnect
+    await presenceStore.update('s1', { raceId: null });
+
+    const summary = await presenceStore.summary();
+    expect(summary.connections).toBe(0);
+    expect(summary.guests).toBe(0);
+    expect(summary.users).toEqual([]);
+  });
+});
+
+describe('presenceStore с Redis (операции сериализованы по сокету)', () => {
+  let hash;
+
+  function fakeClient() {
+    hash = new Map();
+    return {
+      hSet: jest.fn(async (_key, field, raw) => {
+        // небольшая задержка делает гонку update/unregister воспроизводимой
+        await Promise.resolve();
+        hash.set(field, raw);
+        return 1;
+      }),
+      hGet: jest.fn(async (_key, field) => hash.get(field) ?? null),
+      hDel: jest.fn(async (_key, field) => {
+        hash.delete(field);
+        return 1;
+      }),
+      hGetAll: jest.fn(async () => Object.fromEntries(hash)),
+    };
+  }
+
+  test('update и unregister выполняются по порядку, запись не остаётся', async () => {
+    const client = fakeClient();
+    jest.spyOn(redisClient, 'getClient').mockResolvedValue(client);
+
+    await presenceStore.register('s1', { userId: 1, raceId: '2026-5' });
+    expect(hash.has('s1')).toBe(true);
+
+    const update = presenceStore.update('s1', { raceId: null });
+    const remove = presenceStore.unregister('s1');
+    await Promise.all([update, remove]);
+
+    expect(hash.has('s1')).toBe(false);
+    const summary = await presenceStore.summary();
+    expect(summary.connections).toBe(0);
+  });
+
+  test('summary читает актуальный состав из Redis', async () => {
+    const client = fakeClient();
+    jest.spyOn(redisClient, 'getClient').mockResolvedValue(client);
+
+    await presenceStore.register('s1', { userId: 7, username: 'Max', raceId: '2026-5' });
+    await presenceStore.register('s2', { userId: null, username: 'Гость', raceId: '2026-5' });
+
+    const summary = await presenceStore.summary('2026-5');
+    expect(summary.connections).toBe(2);
+    expect(summary.users).toEqual([7]);
+    expect(summary.guests).toBe(1);
+    expect(summary.raceConnections).toBe(2);
   });
 });

@@ -16,7 +16,36 @@
     "test": "jest --runInBand",
     "test:coverage": "jest --runInBand --coverage",
     "test:integration": "jest --runInBand tests/integration",
+    "test:mongo": "INTEGRATION=1 jest --runInBand tests/integration/mongo.integration.test.js",
     "sync:history": "node src/scripts/syncHistory.js"
+  },
+  "jest": {
+    "coverageThreshold": {
+      "**/src/services/probabilityService.js": {
+        "statements": 60,
+        "branches": 60,
+        "functions": 60,
+        "lines": 60
+      },
+      "**/src/services/leaderboardService.js": {
+        "statements": 60,
+        "branches": 60,
+        "functions": 60,
+        "lines": 60
+      },
+      "**/src/services/predictionService.js": {
+        "statements": 60,
+        "branches": 60,
+        "functions": 60,
+        "lines": 60
+      },
+      "**/src/cache/cacheService.js": {
+        "statements": 60,
+        "branches": 60,
+        "functions": 60,
+        "lines": 60
+      }
+    }
   },
   "keywords": [
     "f1",
