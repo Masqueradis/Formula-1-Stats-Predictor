@@ -5,6 +5,7 @@ import { useAuth } from '../context/useAuth'
 import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
 import Input from '../components/ui/Input'
+import errorMessage from '../utils/errorMessages'
 
 export default function RegisterPage() {
   useDocumentTitle('Регистрация')
@@ -28,7 +29,7 @@ export default function RegisterPage() {
       await register(form.username, form.email, form.password)
       setRegisteredEmail(form.email)
     } catch (err) {
-      setError(err.response?.data?.error || 'Ошибка регистрации')
+      setError(errorMessage(err, 'Не удалось зарегистрироваться. Попробуйте ещё раз.'))
     } finally {
       setLoading(false)
     }
@@ -74,7 +75,7 @@ export default function RegisterPage() {
           <Input label="Пароль (мин. 6 символов)" name="password" type="password" value={form.password} onChange={handleChange} />
 
           {error && (
-            <p className="rounded-md bg-red-500/10 px-3 py-2 text-sm font-medium text-red-500">{error}</p>
+            <p role="alert" className="rounded-md bg-red-500/10 px-3 py-2 text-sm font-medium text-red-500">{error}</p>
           )}
 
           <Button type="submit" className="w-full" disabled={loading}>

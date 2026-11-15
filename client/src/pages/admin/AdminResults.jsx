@@ -8,6 +8,7 @@ import Input from '../../components/ui/Input'
 import Select from '../../components/ui/Select'
 import Spinner from '../../components/ui/Spinner'
 import { useToast } from '../../components/ui/useToast'
+import errorMessage from '../../utils/errorMessages'
 
 const EMPTY_ADD = {
   raceId: '',
@@ -149,7 +150,7 @@ export default function AdminResults() {
       setAddForm(EMPTY_ADD)
       await loadResults(driverId)
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Не удалось добавить результат')
+      toast.error(errorMessage(err, 'Не удалось добавить результат'))
     }
     setPending(false)
   }
@@ -184,7 +185,7 @@ export default function AdminResults() {
       setEditingId(null)
       await loadResults(driverId)
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Не удалось обновить результат')
+      toast.error(errorMessage(err, 'Не удалось обновить результат'))
     }
     setPending(false)
   }
@@ -196,7 +197,7 @@ export default function AdminResults() {
       toast.success('Результат удалён')
       await loadResults(driverId)
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Не удалось удалить результат')
+      toast.error(errorMessage(err, 'Не удалось удалить результат'))
     }
     setPending(false)
   }

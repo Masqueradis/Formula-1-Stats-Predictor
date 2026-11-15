@@ -14,13 +14,21 @@ api.interceptors.request.use((config) => {
   return config
 })
 
+// Неверный пароль на форме входа — не повод перезагружать страницу:
+// иначе теряется введённое и ошибка не успевает показаться (BUG-03).
+const AUTH_ENTRYPOINTS = ['/auth/login', '/auth/register']
+
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem(TOKEN_KEY)
-      if (window.location.pathname !== '/login') {
-        window.location.assign('/login')
+      const url = String(error.config?.url || '')
+      const isAuthEntrypoint = AUTH_ENTRYPOINTS.some((path) => url.includes(path))
+      if (!isAuthEntrypoint) {
+        localStorage.removeItem(TOKEN_KEY)
+        if (window.location.pathname !== '/login') {
+          window.location.assign('/login')
+        }
       }
     }
     return Promise.reject(error)

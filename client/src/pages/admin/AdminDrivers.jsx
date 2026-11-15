@@ -8,6 +8,7 @@ import Input from '../../components/ui/Input'
 import Select from '../../components/ui/Select'
 import Spinner from '../../components/ui/Spinner'
 import { useToast } from '../../components/ui/useToast'
+import errorMessage from '../../utils/errorMessages'
 
 const EMPTY_FORM = {
   firstName: '',
@@ -88,7 +89,7 @@ export default function AdminDrivers() {
       toast.success('Пилот добавлен')
     } catch (err) {
       setDrivers(prev => prev.filter(d => d.id !== tempId))
-      toast.error(err.response?.data?.error || 'Не удалось добавить пилота')
+      toast.error(errorMessage(err, 'Не удалось добавить пилота'))
     }
   }
 
@@ -112,7 +113,7 @@ export default function AdminDrivers() {
       toast.success('Пилот обновлён')
     } catch (err) {
       setDrivers(prev => prev.map(d => (d.id === id ? previous : d)))
-      toast.error(err.response?.data?.error || 'Не удалось обновить пилота')
+      toast.error(errorMessage(err, 'Не удалось обновить пилота'))
     }
   }
 
@@ -126,7 +127,7 @@ export default function AdminDrivers() {
       toast.success(isActive ? 'Пилот возвращён из архива' : 'Пилот архивирован')
     } catch (err) {
       setDrivers(previous)
-      toast.error(err.response?.data?.error || 'Не удалось изменить статус пилота')
+      toast.error(errorMessage(err, 'Не удалось изменить статус пилота'))
     }
     setPendingId(null)
   }
@@ -145,7 +146,7 @@ export default function AdminDrivers() {
         next.splice(Math.min(index, next.length), 0, previous)
         return next
       })
-      toast.error(err.response?.data?.error || 'Не удалось удалить пилота')
+      toast.error(errorMessage(err, 'Не удалось удалить пилота'))
     }
     setPendingId(null)
   }

@@ -23,7 +23,7 @@ function normalizeSeasonFilter(raw) {
   if (String(raw).toLowerCase() === 'current') return 'current';
   const value = Number(raw);
   if (!Number.isInteger(value) || value < 1950 || value > 2100) {
-    throw httpError(400, 'season must be a valid year');
+    throw httpError(400, 'Некорректный сезон: укажите год от 1950 до 2100');
   }
   return value;
 }
@@ -56,24 +56,69 @@ function normalizeBroadcastUrl(value) {
   const trimmed = String(value ?? '').trim();
   if (!trimmed) return null;
   if (!/^https?:\/\/[^\s]+$/i.test(trimmed)) {
-    throw httpError(400, 'broadcastUrl must be a valid http(s) URL');
+    throw httpError(400, 'Ссылка на трансляцию должна начинаться с http:// или https://');
   }
   if (trimmed.length > 500) {
-    throw httpError(400, 'broadcastUrl is too long (max 500 characters)');
+    throw httpError(400, 'Ссылка на трансляцию слишком длинная (максимум 500 символов)');
   }
   return trimmed;
 }
 
+/**
+ * Эпик-13 (BUG-04): формы админки присылают пустые строки для необязательных
+ * полей. Postgres на `date = ''`/`DECIMAL = ''` падал с 400 и английским текстом,
+ * поэтому пустое превращаем в NULL, а координаты приводим к числу.
+ */
+function normalizeOptionalDate(value) {
+  const trimmed = String(value ?? '').trim();
+  return trimmed || null;
+}
+
+function normalizeCoordinate(value, label) {
+  if (value === undefined || value === null) return null;
+  const trimmed = String(value).trim();
+  if (!trimmed) return null;
+  const number = Number(trimmed);
+  if (!Number.isFinite(number)) {
+    throw httpError(400, `${label} трассы должна быть числом`);
+  }
+  return number;
+}
+
+function normalizeRacePayload(data = {}) {
+  const payload = { ...data };
+  if (typeof payload.name === 'string') payload.name = payload.name.trim();
+  if ('circuit' in payload) payload.circuit = String(payload.circuit ?? '').trim() || null;
+  if ('country' in payload) payload.country = String(payload.country ?? '').trim() || null;
+  if ('date' in payload) payload.date = normalizeOptionalDate(payload.date);
+  if ('trackLatitude' in payload) payload.trackLatitude = normalizeCoordinate(payload.trackLatitude, 'Широта');
+  if ('trackLongitude' in payload) payload.trackLongitude = normalizeCoordinate(payload.trackLongitude, 'Долгота');
+  if ('broadcastUrl' in payload) payload.broadcastUrl = normalizeBroadcastUrl(payload.broadcastUrl);
+
+  if ('season' in payload) {
+    const season = Number(payload.season);
+    if (!Number.isInteger(season) || season < 1950 || season > 2100) {
+      throw httpError(400, 'Некорректный сезон: укажите год от 1950 до 2100');
+    }
+    payload.season = season;
+  }
+  if ('round' in payload) {
+    const round = Number(payload.round);
+    if (!Number.isInteger(round) || round < 1) {
+      throw httpError(400, 'Некорректный номер этапа: нужно целое число ≥ 1');
+    }
+    payload.round = round;
+  }
+
+  return payload;
+}
+
 async function create(data) {
-  return baseService.create({ ...data, broadcastUrl: normalizeBroadcastUrl(data.broadcastUrl) });
+  return baseService.create(normalizeRacePayload(data));
 }
 
 async function update(rawId, data) {
-  const patch = { ...data };
-  if (Object.prototype.hasOwnProperty.call(patch, 'broadcastUrl')) {
-    patch.broadcastUrl = normalizeBroadcastUrl(patch.broadcastUrl);
-  }
-  return baseService.update(rawId, patch);
+  return baseService.update(rawId, normalizeRacePayload(data));
 }
 
 /**

@@ -4,6 +4,7 @@ import api from '../../api'
 import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
 import Input from '../../components/ui/Input'
+import errorMessage from '../../utils/errorMessages'
 
 const FIELDS = [
   ['teams', 'Команды'],
@@ -28,7 +29,7 @@ export default function AdminSync() {
       const { data } = await api.post('/admin/sync', { season: Number(season) })
       setSummary(data.data)
     } catch (err) {
-      setError(err.response?.data?.details || err.response?.data?.error || 'Не удалось синхронизировать данные')
+      setError(errorMessage(err, 'Не удалось синхронизировать данные'))
     }
     setLoading(false)
   }

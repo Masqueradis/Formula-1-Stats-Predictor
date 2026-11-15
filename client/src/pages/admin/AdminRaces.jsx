@@ -8,6 +8,10 @@ import Input from '../../components/ui/Input'
 import Select from '../../components/ui/Select'
 import Spinner from '../../components/ui/Spinner'
 import { useToast } from '../../components/ui/useToast'
+import errorMessage from '../../utils/errorMessages'
+
+const MIN_SEASON = 1950
+const MAX_SEASON = 2100
 
 const EMPTY_FORM = {
   name: '',
@@ -57,6 +61,30 @@ function sortRaces(races) {
   return [...races].sort((a, b) => (b.season - a.season) || (b.round - a.round))
 }
 
+function optionalNumber(value) {
+  const trimmed = String(value ?? '').trim()
+  return trimmed === '' ? null : Number(trimmed)
+}
+
+/**
+ * BUG-04: пустые строки date/координат нельзя отправлять в API —
+ * Postgres падал с «invalid input syntax for type date/numeric».
+ */
+function toRacePayload(form) {
+  return {
+    name: form.name.trim(),
+    circuit: form.circuit.trim(),
+    country: form.country.trim(),
+    date: String(form.date || '').trim() || null,
+    season: Number(form.season),
+    round: Number(form.round),
+    status: form.status,
+    trackLatitude: optionalNumber(form.trackLatitude),
+    trackLongitude: optionalNumber(form.trackLongitude),
+    broadcastUrl: String(form.broadcastUrl || '').trim() || null,
+  }
+}
+
 export default function AdminRaces() {
   useDocumentTitle('Админ — Гонки')
   const toast = useToast()
@@ -69,19 +97,25 @@ export default function AdminRaces() {
   const [confirm, setConfirm] = useState(null)
   const [pendingId, setPendingId] = useState(null)
 
-  const loadSeasons = useCallback(async () => {
+  // Список сезонов строится из /history/seasons: после создания/переноса/удаления
+  // гонки его нужно перечитать, иначе нового сезона нет в селекте (BUG-04).
+  const syncSeasons = useCallback(async (preferred) => {
     try {
       const { data } = await api.get('/history/seasons')
       const list = data.data || []
+      const values = list.map((row) => String(row.season))
       setSeasons(list)
-      if (list.length === 0) {
-        setLoading(false)
-        return
-      }
-      setSeasonFilter((prev) => prev || String(list[0].season))
+      setSeasonFilter((prev) => {
+        const next = preferred ?? prev
+        if (next && values.includes(String(next))) return String(next)
+        return values[0] || ''
+      })
+      if (list.length === 0) setLoading(false)
+      return values
     } catch {
       setError('Не удалось загрузить сезоны')
       setLoading(false)
+      return []
     }
   }, [])
 
@@ -99,8 +133,8 @@ export default function AdminRaces() {
   }, [])
 
   useEffect(() => {
-    loadSeasons()
-  }, [loadSeasons])
+    syncSeasons()
+  }, [syncSeasons])
 
   useEffect(() => {
     if (seasonFilter) loadRaces(seasonFilter)
@@ -110,49 +144,37 @@ export default function AdminRaces() {
 
   const addRace = async (form) => {
     const tempId = `temp-${Date.now()}`
+    const payload = toRacePayload(form)
     const optimistic = {
       id: tempId,
-      ...form,
-      season: Number(form.season),
-      round: Number(form.round),
-      broadcastUrl: form.broadcastUrl.trim() || null,
+      ...payload,
+      name: payload.name,
       winner: null,
       results: [],
     }
     setRaces(prev => sortRaces([...prev, optimistic]))
     try {
-      const { data } = await api.post('/races', {
-        ...form,
-        season: Number(form.season),
-        round: Number(form.round),
-      })
+      const { data } = await api.post('/races', payload)
       setRaces(prev => sortRaces(prev.map(r => (r.id === tempId ? data.data : r))))
       toast.success('Гонка добавлена')
-      const addedSeason = String(data.data?.season ?? form.season)
-      if (addedSeason !== seasonFilter) setSeasonFilter(addedSeason)
+      await syncSeasons(String(data.data?.season ?? form.season))
     } catch (err) {
       setRaces(prev => prev.filter(r => r.id !== tempId))
-      toast.error(err.response?.data?.error || 'Не удалось добавить гонку')
+      toast.error(errorMessage(err, 'Не удалось добавить гонку'))
     }
   }
 
   const updateRace = async (id, form, previous) => {
-    const patch = {
-      ...form,
-      season: Number(form.season),
-      round: Number(form.round),
-      broadcastUrl: form.broadcastUrl.trim() || null,
-    }
-    setRaces(prev => sortRaces(prev.map(r => (r.id === id ? { ...r, ...patch } : r))))
+    const payload = toRacePayload(form)
+    setRaces(prev => sortRaces(prev.map(r => (r.id === id ? { ...r, ...payload } : r))))
     try {
-      const { data } = await api.put(`/races/${id}`, patch)
+      const { data } = await api.put(`/races/${id}`, payload)
       setRaces(prev => sortRaces(prev.map(r => (r.id === id ? data.data : r))))
       toast.success('Гонка обновлена')
-      const movedTo = String(data.data?.season ?? patch.season)
-      if (movedTo !== seasonFilter) setSeasonFilter(movedTo)
+      await syncSeasons(String(data.data?.season ?? payload.season))
     } catch (err) {
       setRaces(prev => sortRaces(prev.map(r => (r.id === id ? previous : r))))
-      toast.error(err.response?.data?.error || 'Не удалось обновить гонку')
+      toast.error(errorMessage(err, 'Не удалось обновить гонку'))
     }
   }
 
@@ -163,9 +185,10 @@ export default function AdminRaces() {
     try {
       await api.delete(`/races/${id}`)
       toast.success('Гонка удалена (включая документ прогнозов в MongoDB)')
+      await syncSeasons()
     } catch (err) {
       setRaces(previous)
-      toast.error(err.response?.data?.error || 'Не удалось удалить гонку')
+      toast.error(errorMessage(err, 'Не удалось удалить гонку'))
     }
     setPendingId(null)
   }
@@ -193,7 +216,7 @@ export default function AdminRaces() {
     return (
       <Card className="p-8 text-center">
         <p className="mb-4 text-sm font-medium text-red-500">{error}</p>
-        <Button onClick={() => loadRaces(seasonFilter)}>Повторить</Button>
+        <Button onClick={async () => { setError(''); const values = await syncSeasons(); const season = seasonFilter || values[0]; if (season) loadRaces(season) }}>Повторить</Button>
       </Card>
     )
   }
@@ -356,16 +379,29 @@ function AddRaceForm({ onAdd }) {
   }
 
   const handleSubmit = () => {
+    const season = Number(form.season)
+    const round = Number(form.round)
+    const latitude = optionalNumber(form.trackLatitude)
+    const longitude = optionalNumber(form.trackLongitude)
+
     if (!form.name.trim()) {
       setError('Введите название Гран-при.')
       return
     }
-    if (!form.season || Number(form.season) < 1950) {
-      setError('Введите корректный сезон (год ≥ 1950).')
+    if (!form.season || !Number.isInteger(season) || season < MIN_SEASON || season > MAX_SEASON) {
+      setError(`Введите корректный сезон (${MIN_SEASON}–${MAX_SEASON}).`)
       return
     }
-    if (!form.round || Number(form.round) < 1) {
-      setError('Введите корректный номер этапа.')
+    if (!form.round || !Number.isInteger(round) || round < 1) {
+      setError('Введите корректный номер этапа (целое число ≥ 1).')
+      return
+    }
+    if (latitude !== null && !Number.isFinite(latitude)) {
+      setError('Широта трассы должна быть числом.')
+      return
+    }
+    if (longitude !== null && !Number.isFinite(longitude)) {
+      setError('Долгота трассы должна быть числом.')
       return
     }
     if (!isValidBroadcastUrl(form.broadcastUrl)) {
@@ -384,7 +420,7 @@ function AddRaceForm({ onAdd }) {
         <div className="col-span-2">
           <Input label="Название" name="name" value={form.name} onChange={handleChange} placeholder="Monaco Grand Prix" />
         </div>
-        <Input label="Сезон" type="number" name="season" value={form.season} onChange={handleChange} min={1950} />
+        <Input label="Сезон" type="number" name="season" value={form.season} onChange={handleChange} min={MIN_SEASON} max={MAX_SEASON} step={1} />
         <Input label="Этап" type="number" name="round" value={form.round} onChange={handleChange} min={1} />
         <Input label="Дата" type="date" name="date" value={form.date} onChange={handleChange} />
         <Select label="Статус" name="status" value={form.status} onChange={handleChange}>

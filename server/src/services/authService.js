@@ -29,15 +29,15 @@ function publicUser(user, extras = {}) {
 
 async function register({ username, email, password }) {
   if (!username || !email || !password) {
-    return { error: 'username, email and password are required' };
+    return { error: 'Укажите имя пользователя, email и пароль', status: 400 };
   }
   if (typeof password !== 'string' || password.length < 6) {
-    return { error: 'Password must be at least 6 characters long' };
+    return { error: 'Пароль должен содержать минимум 6 символов', status: 400 };
   }
 
   const existing = await userRepository.findByEmail(email);
   if (existing) {
-    return { error: 'Email already registered', status: 409 };
+    return { error: 'Этот email уже зарегистрирован', status: 409 };
   }
 
   const passwordHash = await bcrypt.hash(password, 10);
@@ -60,12 +60,12 @@ async function register({ username, email, password }) {
 
 async function verify(rawToken) {
   if (!rawToken) {
-    return { error: 'Verification token is required' };
+    return { error: 'Не указан токен подтверждения', status: 400 };
   }
 
   const user = await userRepository.findOne({ verificationToken: rawToken });
   if (!user) {
-    return { error: 'Invalid or expired verification token', status: 400 };
+    return { error: 'Ссылка подтверждения недействительна или устарела', status: 400 };
   }
 
   await user.update({ verificationToken: null, isVerified: true });
@@ -77,24 +77,24 @@ async function verify(rawToken) {
 
 async function login({ email, password }) {
   if (!email || !password) {
-    return { error: 'email and password are required' };
+    return { error: 'Укажите email и пароль', status: 400 };
   }
 
   const user = await userRepository.findByEmail(email);
   if (!user) {
     logger.warn('auth.login', { email, result: 'unknown_email' });
-    return { error: 'Invalid credentials', status: 401 };
+    return { error: 'Неверный email или пароль', status: 401 };
   }
 
   if (!user.isVerified) {
     logger.warn('auth.login', { userId: user.id, email, result: 'not_verified' });
-    return { error: 'Email not verified. Check your inbox.', status: 403 };
+    return { error: 'Email не подтверждён. Проверьте почту.', status: 403 };
   }
 
   const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) {
     logger.warn('auth.login', { userId: user.id, email, result: 'bad_password' });
-    return { error: 'Invalid credentials', status: 401 };
+    return { error: 'Неверный email или пароль', status: 401 };
   }
 
   logger.info('auth.login', { userId: user.id, email, result: 'success' });
@@ -105,7 +105,7 @@ async function login({ email, password }) {
 async function getMe(userId) {
   const user = await userRepository.findByIdWithFavorites(userId);
   if (!user) {
-    return { error: 'User not found', status: 404 };
+    return { error: 'Пользователь не найден', status: 404 };
   }
   const isActiveRecord = (record) => {
     const json = typeof record.toJSON === 'function' ? record.toJSON() : record;

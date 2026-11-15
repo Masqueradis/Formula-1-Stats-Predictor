@@ -6,6 +6,7 @@ import Card from '../../components/ui/Card'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import Spinner from '../../components/ui/Spinner'
 import { useToast } from '../../components/ui/useToast'
+import errorMessage from '../../utils/errorMessages'
 
 export default function AdminUsers() {
   useDocumentTitle('Админ — Пользователи')
@@ -46,7 +47,7 @@ export default function AdminUsers() {
         next.splice(Math.min(index, next.length), 0, previous)
         return next
       })
-      toast.error(err.response?.data?.error || 'Не удалось удалить пользователя')
+      toast.error(errorMessage(err, 'Не удалось удалить пользователя'))
     }
     setPendingId(null)
   }

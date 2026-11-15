@@ -4,7 +4,7 @@ import { useSocket } from '../context/useSocket'
  * Индикатор realtime-соединения и онлайна (лаба 7).
  * Показывает статус подключения и число пользователей (уникальных) + гостей.
  */
-export default function LiveIndicator() {
+export default function LiveIndicator({ className = '' }) {
   const { status, statusLabel, presence } = useSocket()
 
   const dotClass =
@@ -18,7 +18,7 @@ export default function LiveIndicator() {
 
   return (
     <div
-      className="flex items-center gap-2 rounded-full border border-border-soft px-3 py-1.5 text-xs dark:border-border-dark"
+      className={`flex items-center gap-2 rounded-full border border-border-soft px-3 py-1.5 text-xs dark:border-border-dark ${className}`}
       title={`Live: ${statusLabel}. Соединений: ${presence?.connections ?? 0}`}
     >
       <span className={`h-2 w-2 rounded-full ${dotClass}`} aria-hidden />

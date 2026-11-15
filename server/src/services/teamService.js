@@ -47,7 +47,7 @@ async function resolveSeason(raw) {
   if (raw === undefined || raw === null || raw === '') return currentSeason();
   const value = Number(raw);
   if (!Number.isInteger(value) || value < 1950 || value > 2100) {
-    const err = new Error('season must be a valid year');
+    const err = new Error('Некорректный сезон: укажите год от 1950 до 2100');
     err.status = 400;
     throw err;
   }
@@ -65,7 +65,7 @@ async function getById(rawId, rawSeason) {
   if (id === null) return { error: 'Invalid id' };
   const season = await resolveSeason(rawSeason);
   const team = await teamRepository.findByIdWithDetails(id, season, { includeInactive: true });
-  if (!team) return { error: 'team not found', status: 404 };
+  if (!team) return { error: 'Команда не найдена', status: 404 };
   return sanitizeTeam(team, season);
 }
 
@@ -81,7 +81,7 @@ async function update(rawId, data) {
   const id = parseId(rawId);
   if (id === null) return { error: 'Invalid id' };
   const updated = await teamRepository.update(id, whitelist(data));
-  if (!updated) return { error: 'team not found', status: 404 };
+  if (!updated) return { error: 'Команда не найдена', status: 404 };
   await invalidateApiCache();
   const season = await currentSeason();
   const full = await teamRepository.findByIdWithDetails(id, season, { includeInactive: true });
@@ -93,7 +93,7 @@ async function remove(rawId) {
   if (id === null) return { error: 'Invalid id' };
 
   const team = await Team.findByPk(id);
-  if (!team) return { error: 'team not found', status: 404 };
+  if (!team) return { error: 'Команда не найдена', status: 404 };
 
   const results = await RaceResult.count({ where: { teamId: id } });
   if (results > 0) {

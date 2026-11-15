@@ -22,7 +22,7 @@ async function syncDriverTeam(driverId, teamId) {
 
   const team = await Team.findByPk(numId);
   if (!team) {
-    const err = new Error('Team not found');
+    const err = new Error('Команда не найдена');
     err.status = 400;
     throw err;
   }
@@ -52,7 +52,7 @@ async function getById(rawId) {
   if (id === null) return { error: 'Invalid id' };
   // includeInactive: архивные пилоты открываются из исторических Гран-при
   const record = await driverRepository.findByIdWithDetails(id, { includeInactive: true });
-  if (!record) return { error: 'driver not found', status: 404 };
+  if (!record) return { error: 'Пилот не найден', status: 404 };
   return sanitizeDriver(record);
 }
 
@@ -90,7 +90,7 @@ async function update(rawId, data) {
     podiums: data.podiums,
     isActive: data.isActive,
   });
-  if (!updated) return { error: 'driver not found', status: 404 };
+  if (!updated) return { error: 'Пилот не найден', status: 404 };
 
   await syncDriverTeam(id, data.teamId);
   await invalidateApiCache();
@@ -109,7 +109,7 @@ module.exports = {
     if (id === null) return { error: 'Invalid id' };
 
     const driver = await driverRepository.findById(id);
-    if (!driver) return { error: 'driver not found', status: 404 };
+    if (!driver) return { error: 'Пилот не найден', status: 404 };
 
     const results = await driverRepository.countResults(id);
     if (results > 0) {

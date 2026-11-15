@@ -7,6 +7,7 @@ import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import Input from '../../components/ui/Input'
 import Spinner from '../../components/ui/Spinner'
 import { useToast } from '../../components/ui/useToast'
+import errorMessage from '../../utils/errorMessages'
 
 const EMPTY_FORM = {
   name: '',
@@ -70,7 +71,7 @@ export default function AdminTeams() {
       toast.success('Команда добавлена')
     } catch (err) {
       setTeams(prev => prev.filter(t => t.id !== tempId))
-      toast.error(err.response?.data?.error || 'Не удалось добавить команду')
+      toast.error(errorMessage(err, 'Не удалось добавить команду'))
     }
   }
 
@@ -83,7 +84,7 @@ export default function AdminTeams() {
       toast.success('Команда обновлена')
     } catch (err) {
       setTeams(prev => prev.map(t => (t.id === id ? previous : t)))
-      toast.error(err.response?.data?.error || 'Не удалось обновить команду')
+      toast.error(errorMessage(err, 'Не удалось обновить команду'))
     }
   }
 
@@ -97,7 +98,7 @@ export default function AdminTeams() {
       toast.success(isActive ? 'Команда возвращена из архива' : 'Команда архивирована')
     } catch (err) {
       setTeams(previous)
-      toast.error(err.response?.data?.error || 'Не удалось изменить статус команды')
+      toast.error(errorMessage(err, 'Не удалось изменить статус команды'))
     }
     setPendingId(null)
   }
@@ -116,7 +117,7 @@ export default function AdminTeams() {
         next.splice(Math.min(index, next.length), 0, previous)
         return next
       })
-      toast.error(err.response?.data?.error || 'Не удалось удалить команду')
+      toast.error(errorMessage(err, 'Не удалось удалить команду'))
     }
     setPendingId(null)
   }

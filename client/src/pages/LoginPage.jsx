@@ -5,6 +5,7 @@ import { useAuth } from '../context/useAuth'
 import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
 import Input from '../components/ui/Input'
+import errorMessage from '../utils/errorMessages'
 
 export default function LoginPage() {
   useDocumentTitle('Вход')
@@ -30,7 +31,7 @@ export default function LoginPage() {
       await login(form.email, form.password)
       navigate(from, { replace: true })
     } catch (err) {
-      setError(err.response?.data?.error || 'Ошибка авторизации')
+      setError(errorMessage(err, 'Не удалось войти. Проверьте данные и попробуйте ещё раз.'))
     } finally {
       setLoading(false)
     }
@@ -49,7 +50,7 @@ export default function LoginPage() {
           <Input label="Пароль" name="password" type="password" value={form.password} onChange={handleChange} />
 
           {error && (
-            <p className="rounded-md bg-red-500/10 px-3 py-2 text-sm font-medium text-red-500">{error}</p>
+            <p role="alert" className="rounded-md bg-red-500/10 px-3 py-2 text-sm font-medium text-red-500">{error}</p>
           )}
 
           <Button type="submit" className="w-full" disabled={loading}>

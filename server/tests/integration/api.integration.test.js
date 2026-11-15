@@ -85,9 +85,9 @@ maybe('API (integration)', () => {
     expect(res.body.data[0]).toHaveProperty('round');
   });
 
-  test('GET /api/races?season=1900 → 400 season must be a valid year', async () => {
+  test('GET /api/races?season=1900 → 400 «Некорректный сезон»', async () => {
     const res = await request(BASE).get('/api/races?season=1900').expect(400);
-    expect(res.body.error).toBe('season must be a valid year');
+    expect(res.body.error).toMatch(/Некорректный сезон/);
   });
 
   test('GET /api/history/seasons → сезоны по убыванию с числом гонок', async () => {
@@ -130,7 +130,7 @@ maybe('API (integration)', () => {
 
   test('GET /api/race-results?season=1900 → 400', async () => {
     const res = await request(BASE).get('/api/race-results?season=1900').expect(400);
-    expect(res.body.error).toBe('season must be a valid year');
+    expect(res.body.error).toMatch(/Некорректный сезон/);
   });
 
   test('GET /api/drivers → список пилотов с аббревиатурой', async () => {
@@ -165,7 +165,7 @@ maybe('API (integration)', () => {
       .post('/api/auth/login')
       .send({ email: EMAIL, password: PASSWORD })
       .expect(403);
-    expect(login.body.error).toMatch(/not verified/i);
+    expect(login.body.error).toMatch(/не подтверждён/i);
   });
 
   test('GET /api/users не отдаёт passwordHash и verificationToken', async () => {
