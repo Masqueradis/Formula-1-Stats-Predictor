@@ -70,20 +70,21 @@ export default function LeaderboardPage() {
     })
   }, [subscribe, load])
 
-  if (loading) return <Spinner label="Загрузка рейтинга…" />
-
   const users = data?.users || []
   const rules = data?.rules || { exact: 3, podium: 1 }
 
   const sortedUsers = useMemo(() => {
+    const list = data?.users || []
     const direction = sort.dir === 'asc' ? 1 : -1
-    return [...users].sort((a, b) => {
+    return [...list].sort((a, b) => {
       const diff = (Number(a[sort.key]) || 0) - (Number(b[sort.key]) || 0)
       if (diff !== 0) return diff * direction
       // При равенстве сохраняем порядок рейтинга по баллам
       return (Number(a.rank) || 0) - (Number(b.rank) || 0)
     })
-  }, [users, sort])
+  }, [data, sort])
+
+  if (loading) return <Spinner label="Загрузка рейтинга…" />
 
   const handleSort = (key) => {
     setSort((prev) => (

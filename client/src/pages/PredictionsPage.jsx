@@ -125,6 +125,11 @@ export default function PredictionsPage() {
                 сумма: 100,00 %
               </span>
             </div>
+            <p className="px-6 pb-3 text-sm text-muted dark:text-muted-dark">
+              Проценты показывают оценочную вероятность наилучшего результата пилота в этой гонке
+              по модели Softmax (на основе квалификации, формы пилота/команды и истории трассы).
+              Это не гарантия исхода: реальные результаты зависят от факторов вне модели.
+            </p>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[760px] text-sm">
                 <thead>

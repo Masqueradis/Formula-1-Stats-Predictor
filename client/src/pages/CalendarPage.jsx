@@ -163,15 +163,14 @@ export default function CalendarPage() {
             const status = STATUS[race.status] || STATUS.scheduled
             const days = daysUntil(race.date)
             const weatherVisible = days !== null && days <= WEATHER_HORIZON_DAYS
-            const weatherHint = days !== null && days > WEATHER_HORIZON_DAYS
-              ? `Прогноз погоды появится за ${WEATHER_HORIZON_DAYS} дней до гонки`
-              : 'Дата гонки не указана — прогноз погоды недоступен'
+            const showWeather = race.status === 'scheduled' && weatherVisible
+            const showWeatherHint = race.status === 'scheduled' && !weatherVisible && days !== null && days > WEATHER_HORIZON_DAYS
             return (
               <Card
                 key={race.id}
-                className="grid grid-cols-[3rem_minmax(0,1fr)] items-center gap-x-4 gap-y-3 p-4 sm:grid-cols-[3rem_minmax(0,1fr)_10rem_11rem] sm:p-5"
+                className="grid grid-cols-[3rem_minmax(0,1fr)] items-center gap-x-4 gap-y-2 p-4 sm:grid-cols-[3rem_minmax(0,1fr)_10rem_15rem] sm:items-start sm:p-5"
               >
-                <div className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-lg bg-primary/10 dark:bg-accent/10">
+                <div className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-lg bg-primary/10 dark:bg-accent/10 sm:mt-0.5">
                   <span className="text-[10px] font-bold uppercase text-muted dark:text-muted-dark">Этап</span>
                   <span className="text-lg font-black text-primary dark:text-accent">{race.round}</span>
                 </div>
@@ -181,18 +180,11 @@ export default function CalendarPage() {
                   <p className="mt-0.5 truncate text-sm text-muted dark:text-muted-dark">
                     {[race.circuit, race.country].filter(Boolean).join(' · ')}
                   </p>
-                  {race.status === 'scheduled' && (
-                    <div className="mt-2">
-                      {weatherVisible ? (
-                        <WeatherWidget raceId={race.id} />
-                      ) : (
-                        <span className="text-xs text-muted dark:text-muted-dark">{weatherHint}</span>
-                      )}
-                    </div>
-                  )}
+                  {/* Погода/пояснение вынесены в правую колонку, чтобы высота карточки
+                      запланированной гонки не отличалась от завершённой */}
                 </div>
 
-                <div className="col-span-2 flex items-center justify-between gap-3 sm:col-span-1 sm:flex-col sm:items-end sm:justify-center sm:gap-1">
+                <div className="col-span-2 flex items-center justify-between gap-3 sm:col-span-1 sm:flex-col sm:items-end sm:justify-start sm:gap-1 sm:pt-1">
                   <span className="whitespace-nowrap text-sm font-medium tabular-nums text-foreground dark:text-foreground-dark">
                     {formatDate(race.date)}
                   </span>
@@ -201,9 +193,18 @@ export default function CalendarPage() {
                   </span>
                 </div>
 
-                <div className="col-span-2 flex flex-wrap items-center gap-2 sm:col-span-1 sm:flex-col sm:items-end">
+                <div className="col-span-2 flex min-w-0 flex-wrap items-center gap-2 sm:col-span-1 sm:justify-end sm:pt-1">
+                  {showWeather && <WeatherWidget raceId={race.id} />}
+                  {showWeatherHint && (
+                    <span className="text-xs text-muted dark:text-muted-dark sm:text-right">
+                      Погода — за {WEATHER_HORIZON_DAYS} дн.
+                    </span>
+                  )}
                   {race.winner && (
-                    <div className="min-w-0 max-w-full truncate rounded-lg border border-border-soft px-3 py-1.5 text-xs dark:border-border-dark">
+                    <div
+                      className="w-full max-w-full rounded-lg border border-border-soft px-3 py-1.5 text-xs dark:border-border-dark sm:w-auto sm:max-w-full sm:overflow-hidden sm:text-ellipsis sm:whitespace-nowrap"
+                      title={`Победитель: ${race.winner.firstName} ${race.winner.lastName}`}
+                    >
                       <span className="text-muted dark:text-muted-dark">Победитель: </span>
                       <span className="font-bold text-foreground dark:text-foreground-dark">
                         {race.winner.firstName} {race.winner.lastName}

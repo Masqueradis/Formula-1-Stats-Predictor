@@ -59,8 +59,8 @@ export default function Header({ theme, onToggleTheme }) {
           <NavBar />
         </div>
 
-        <div className="ml-auto flex shrink-0 items-center gap-2">
-          <LiveIndicator className="hidden xl:flex" />
+        <div className="ml-auto flex shrink-0 items-center gap-1.5 lg:gap-2">
+          <LiveIndicator compact className="hidden xl:flex" />
           <ThemeToggle theme={theme} onToggle={onToggleTheme} />
 
           {user ? (

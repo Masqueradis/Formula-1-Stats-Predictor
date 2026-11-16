@@ -1,0 +1,52 @@
+services:
+  - type: web
+    name: simply-lovely-api
+    runtime: docker
+    # Сборка из папки бэкенда (монорепозиторий)
+    rootDir: server
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: DATABASE_URL
+        sync: false
+      - key: MONGO_URI
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ORIGINS
+        value: https://simply-lovely.netlify.app
+      - key: FRONTEND_URL
+        value: https://simply-lovely.netlify.app
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_SECURE
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: MAIL_FROM
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: REDIS_ENABLED
+        value: "false"
+      - key: JOLPICA_BASE_URL
+        value: https://api.jolpi.ca/ergast/f1
+      - key: SYNC_SEASON
+        value: "2026"
+      - key: SYNC_CRON_ENABLED
+        value: "false"
+      - key: SYNC_CRON_SCHEDULE
+        value: "0 6 * * *"
+      - key: LEADERBOARD_CRON_ENABLED
+        value: "true"
+      - key: EMAIL_REMINDER_CRON_ENABLED
+        value: "true"
