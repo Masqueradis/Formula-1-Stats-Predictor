@@ -2,6 +2,7 @@
 
 const { Op } = require('sequelize');
 const { NewsItem, sequelize } = require('../models');
+const { cleanSearch } = require('../utils/queryParams');
 
 const MAX_LIMIT = 48;
 const DEFAULT_LIMIT = 12;
@@ -64,7 +65,7 @@ async function search({ q, from, to, page = 1, limit = DEFAULT_LIMIT } = {}) {
     if (toDate) where.publishedAt[Op.lte] = toDate;
   }
 
-  const term = (q || '').trim();
+  const term = cleanSearch(q, 80);
   if (term) {
     const like = `%${term}%`;
     where[Op.and] = [

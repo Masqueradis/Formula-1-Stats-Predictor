@@ -2,6 +2,7 @@ const { SeasonTeam, Team } = require('../models');
 const driverRepository = require('../repositories/driverRepository');
 const { parseId } = require('./crudService');
 const { sanitizeDriver } = require('../utils/serializers');
+const { cleanSearch, cleanId } = require('../utils/queryParams');
 const { invalidateApiCache } = require('../cache/invalidate');
 
 const CURRENT_SEASON_DEFAULT = 2026;
@@ -46,7 +47,11 @@ async function syncDriverTeam(driverId, teamId) {
 }
 
 async function getAll({ search, teamId, includeInactive } = {}) {
-  const records = await driverRepository.findAllWithOptions({ search, teamId, includeInactive });
+  const records = await driverRepository.findAllWithOptions({
+    search: cleanSearch(search),
+    teamId: cleanId(teamId),
+    includeInactive,
+  });
   return clean(records);
 }
 

@@ -15,6 +15,7 @@ export default function SearchFilter({ search, onSearch, team, onTeam, sortField
       <Input
         label="Поиск"
         type="search"
+        maxLength={60}
         placeholder="Имя, аббр.…"
         value={search}
         onChange={(e) => onSearch(e.target.value)}

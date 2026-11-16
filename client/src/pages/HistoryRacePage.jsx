@@ -105,7 +105,7 @@ export default function HistoryRacePage() {
     return () => { cancelled = true }
   }, [raceId])
 
-  if (isLoading) return <Spinner label="Загрузка классификации…" />
+  if (isLoading) return <Spinner label="Загрузка результатов гонки…" />
 
   if (isError || !data) {
     return (
@@ -152,6 +152,9 @@ export default function HistoryRacePage() {
         </div>
         <p className="mt-1 text-sm text-muted dark:text-muted-dark">
           {[race.circuit, race.country].filter(Boolean).join(' · ')}
+        </p>
+        <p className="mt-1 text-xs text-muted dark:text-muted-dark">
+          Полные результаты: итоговое место, стартовая позиция, круги, время или статус схода и очки.
         </p>
       </Card>
 

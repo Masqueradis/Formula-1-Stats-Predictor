@@ -4,6 +4,7 @@ import api from '../../api'
 import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import DateInput from '../../components/ui/DateInput'
 import Input from '../../components/ui/Input'
 import Select from '../../components/ui/Select'
 import Spinner from '../../components/ui/Spinner'
@@ -308,7 +309,7 @@ function RaceRow({ race, pending, onUpdate, onDelete }) {
           </div>
           <Input label="Трасса" name="circuit" value={form.circuit} onChange={handleChange} />
           <Input label="Страна" name="country" value={form.country} onChange={handleChange} />
-          <Input label="Дата" type="date" name="date" value={form.date} onChange={handleChange} />
+          <DateInput label="Дата" name="date" value={form.date} onChange={handleChange} />
           <Select label="Статус" name="status" value={form.status} onChange={handleChange}>
             {STATUS_OPTIONS.map(s => (
               <option key={s.value} value={s.value}>{s.label}</option>
@@ -422,7 +423,7 @@ function AddRaceForm({ onAdd }) {
         </div>
         <Input label="Сезон" type="number" name="season" value={form.season} onChange={handleChange} min={MIN_SEASON} max={MAX_SEASON} step={1} />
         <Input label="Этап" type="number" name="round" value={form.round} onChange={handleChange} min={1} />
-        <Input label="Дата" type="date" name="date" value={form.date} onChange={handleChange} />
+        <DateInput label="Дата" name="date" value={form.date} onChange={handleChange} />
         <Select label="Статус" name="status" value={form.status} onChange={handleChange}>
           {STATUS_OPTIONS.map(s => (
             <option key={s.value} value={s.value}>{s.label}</option>

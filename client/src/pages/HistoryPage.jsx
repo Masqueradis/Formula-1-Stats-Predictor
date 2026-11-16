@@ -76,7 +76,7 @@ export default function HistoryPage() {
         <div>
           <h1 className="text-2xl font-bold text-foreground dark:text-foreground-dark">История Гран-при</h1>
           <p className="mt-1 text-sm text-muted dark:text-muted-dark">
-            Полная классификация гонок 2000–2025. Текущий сезон — в{' '}
+            Полные результаты гонок 2000–2025: итоговые места пилотов, старт, круги и очки. Текущий сезон — в{' '}
             <Link to="/calendar" className="font-semibold text-primary underline dark:text-accent">
               календаре
             </Link>
@@ -141,7 +141,7 @@ export default function HistoryPage() {
                     <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${status.className}`}>
                       {status.label}
                     </span>
-                    <span className="text-xs font-semibold text-primary dark:text-accent">Классификация →</span>
+                    <span className="text-xs font-semibold text-primary dark:text-accent">Результаты гонки →</span>
                   </div>
                 </Card>
               </Link>

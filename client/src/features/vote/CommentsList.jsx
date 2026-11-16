@@ -8,7 +8,7 @@ import Button from '../../components/ui/Button'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import { useToast } from '../../components/ui/useToast'
 
-export default function CommentsList({ doc, user, onChanged }) {
+export default function CommentsList({ doc, user, onChanged, showHeader = true }) {
   const toast = useToast()
   const { subscribe, connected } = useSocket()
   const [text, setText] = useState('')
@@ -97,10 +97,12 @@ export default function CommentsList({ doc, user, onChanged }) {
 
   return (
     <Card className="p-6">
-      <h2 className="mb-3 text-lg font-bold text-foreground dark:text-foreground-dark">
-        Комментарии{' '}
-        <span className="text-sm font-normal text-muted dark:text-muted-dark">({comments.length})</span>
-      </h2>
+      {showHeader && (
+        <h2 className="mb-3 text-lg font-bold text-foreground dark:text-foreground-dark">
+          Комментарии{' '}
+          <span className="text-sm font-normal text-muted dark:text-muted-dark">({comments.length})</span>
+        </h2>
+      )}
 
       {user ? (
         <form onSubmit={addComment} className="mb-4 flex flex-col gap-2 sm:flex-row">

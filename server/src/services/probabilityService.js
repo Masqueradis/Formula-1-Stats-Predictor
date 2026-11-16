@@ -98,6 +98,39 @@ function softmax(scores) {
   return exps.map((e) => (e / sum) * 100);
 }
 
+/**
+ * Эпик-13 (BUG-13): округление процентов методом наибольшего остатка.
+ * Простое `round(p, 2)` даёт сумму 100,01/100,02 %, поэтому сначала берём
+ * floor до сотых, затем распределяем оставшиеся сотые по убыванию дробной части.
+ */
+function distributePercentages(values, digits = 2) {
+  const factor = 10 ** digits;
+  const target = 100 * factor;
+  const scaled = values.map((value) => Math.max(0, Number(value) || 0) * factor);
+  const cents = scaled.map((value) => Math.floor(value));
+
+  let remainder = target - cents.reduce((sum, value) => sum + value, 0);
+  const byFraction = scaled
+    .map((value, index) => ({ index, fraction: value - cents[index] }))
+    .sort((a, b) => b.fraction - a.fraction);
+
+  let cursor = 0;
+  while (remainder > 0 && byFraction.length > 0) {
+    cents[byFraction[cursor % byFraction.length].index] += 1;
+    remainder -= 1;
+    cursor += 1;
+  }
+  // Защита от накопленной ошибки float: если floor дал больше 100 %, снимаем лишние.
+  while (remainder < 0) {
+    const richest = cents.indexOf(Math.max(...cents));
+    if (richest === -1 || cents[richest] <= 0) break;
+    cents[richest] -= 1;
+    remainder += 1;
+  }
+
+  return cents.map((value) => value / factor);
+}
+
 function groupByDriver(rows) {
   const map = new Map();
   for (const row of rows) {
@@ -251,8 +284,9 @@ async function getNextProbabilities() {
   }
 
   const probabilities = softmax(drivers.map((d) => d.score));
+  const percentages = distributePercentages(probabilities);
   drivers.forEach((d, i) => {
-    d.probability = round(probabilities[i], 2);
+    d.probability = percentages[i];
   });
   drivers.sort((a, b) => b.probability - a.probability || a.lastName.localeCompare(b.lastName));
 
@@ -294,6 +328,7 @@ module.exports = {
   getNextProbabilities,
   WEIGHTS,
   softmax,
+  distributePercentages,
   positionScore,
   average,
   blendAverage,

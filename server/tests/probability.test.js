@@ -7,6 +7,7 @@
 
 const {
   softmax,
+  distributePercentages,
   positionScore,
   average,
   blendAverage,
@@ -54,6 +55,35 @@ describe('softmax', () => {
       expect(p).toBeGreaterThan(0);
       expect(p).toBeLessThan(100);
     });
+  });
+});
+
+describe('distributePercentages (BUG-13: ровно 100,00 %)', () => {
+  test('сумма процентов после округления ровно 100.00', () => {
+    const values = softmax([0.51, 0.52, 0.49, 0.48, 0.5, 0.47, 0.53]);
+    const rounded = distributePercentages(values);
+
+    const sum = rounded.reduce((a, b) => a + Math.round(b * 100), 0);
+    expect(sum).toBe(10000);
+    expect(rounded.every((v) => Number.isInteger(Math.round(v * 100)))).toBe(true);
+  });
+
+  test('сумма 100.00 сохраняется на 22 пилотах (реальный размер поля)', () => {
+    const values = softmax(Array.from({ length: 22 }, (_, i) => 0.4 + i * 0.02));
+    const rounded = distributePercentages(values);
+
+    expect(rounded.reduce((a, b) => a + Math.round(b * 100), 0)).toBe(10000);
+  });
+
+  test('распределение по наибольшему остатку, а не по порядку', () => {
+    // 33.333… × 3: floor = 33.33 × 3 = 99.99, одна сотая уходит первому.
+    const rounded = distributePercentages([100 / 3, 100 / 3, 100 / 3]);
+    expect(rounded).toEqual([33.34, 33.33, 33.33]);
+  });
+
+  test('нулевые значения не получают отрицательных процентов', () => {
+    const rounded = distributePercentages([100, 0, 0]);
+    expect(rounded).toEqual([100, 0, 0]);
   });
 });
 

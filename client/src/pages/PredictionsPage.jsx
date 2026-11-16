@@ -50,8 +50,6 @@ export default function PredictionsPage() {
 
   if (loading) return <Spinner label="Рассчитываем прогноз…" />
 
-  const maxProb = data?.drivers?.[0]?.probability || 1
-
   return (
     <div className="space-y-6">
       <div>
@@ -119,55 +117,97 @@ export default function PredictionsPage() {
           </Card>
 
           <Card className="overflow-hidden">
-            <div className="px-6 pt-5 pb-2">
+            <div className="flex flex-wrap items-baseline justify-between gap-2 px-6 pt-5 pb-3">
               <h2 className="text-lg font-bold text-foreground dark:text-foreground-dark">
-                Вероятности (%)
+                Вероятности
               </h2>
+              <span className="text-xs text-muted dark:text-muted-dark">
+                сумма: 100,00 %
+              </span>
             </div>
-            <ul className="space-y-3 p-6 pt-3">
-              {data.drivers.map((d, index) => (
-                <li
-                  key={d.id}
-                  title={`S=${d.score} · старт ${d.features.P_qual} · форма ${d.features.F_driver} · команда ${d.features.F_team} · трасса ${d.features.H_track}`}
-                >
-                  <div className="mb-1 flex items-baseline justify-between gap-3 text-sm">
-                    <span className="flex min-w-0 items-baseline gap-2">
-                      <span className="w-5 shrink-0 text-right font-mono text-muted dark:text-muted-dark">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[760px] text-sm">
+                <thead>
+                  <tr className="border-y border-border-soft bg-background/60 text-left text-xs uppercase tracking-wide text-muted dark:border-border-dark dark:bg-background-dark/60 dark:text-muted-dark">
+                    <th className="px-4 py-2.5 text-right font-semibold">#</th>
+                    <th className="px-2 py-2.5 font-semibold">Пилот</th>
+                    <th className="px-2 py-2.5 text-right font-semibold" title="Вес 0,35 · стартовая позиция">
+                      <FormulaLabel base="P" sub="qual" />
+                    </th>
+                    <th className="px-2 py-2.5 text-right font-semibold" title="Вес 0,30 · форма пилота">
+                      <FormulaLabel base="F" sub="driver" />
+                    </th>
+                    <th className="px-2 py-2.5 text-right font-semibold" title="Вес 0,20 · форма команды">
+                      <FormulaLabel base="F" sub="team" />
+                    </th>
+                    <th className="px-2 py-2.5 text-right font-semibold" title="Вес 0,15 · история трассы">
+                      <FormulaLabel base="H" sub="track" />
+                    </th>
+                    <th className="px-2 py-2.5 text-right font-semibold" title="Итоговый балл до Softmax">
+                      <FormulaLabel base="S" sub="i" />
+                    </th>
+                    <th className="px-6 py-2.5 text-right font-semibold">Вероятность</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.drivers.map((d, index) => (
+                    <tr
+                      key={d.id}
+                      className={`border-b border-border-soft/70 last:border-0 dark:border-border-dark/70 ${
+                        index % 2 === 1 ? 'bg-background/40 dark:bg-background-dark/40' : ''
+                      }`}
+                    >
+                      <td className="px-4 py-2.5 text-right font-mono text-muted dark:text-muted-dark">
                         {index + 1}
-                      </span>
-                      <span className="font-semibold text-foreground dark:text-foreground-dark">
-                        {d.firstName} {d.lastName}
-                      </span>
-                      <span
-                        className="h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-border-soft"
-                        style={{ backgroundColor: d.team?.color || '#0ea5e9' }}
-                        aria-hidden
-                      />
-                      <span className="truncate text-xs text-muted dark:text-muted-dark">
-                        {d.team?.name}
-                      </span>
-                      {FORM_SOURCE_LABELS[d.formSource] && (
-                        <span className="shrink-0 rounded-full bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-400">
-                          {FORM_SOURCE_LABELS[d.formSource]}
+                      </td>
+                      <td className="px-2 py-2.5">
+                        <span className="flex min-w-0 flex-wrap items-center gap-2">
+                          <span
+                            className="h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-border-soft dark:ring-border-dark"
+                            style={{ backgroundColor: d.team?.color || '#0ea5e9' }}
+                            aria-hidden
+                          />
+                          <span className="font-semibold text-foreground dark:text-foreground-dark">
+                            {d.firstName} {d.lastName}
+                          </span>
+                          <span className="truncate text-xs text-muted dark:text-muted-dark">
+                            {d.team?.name}
+                          </span>
+                          {FORM_SOURCE_LABELS[d.formSource] && d.formSource !== 'current' && (
+                            <span className="shrink-0 rounded-full bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-400">
+                              {FORM_SOURCE_LABELS[d.formSource]}
+                            </span>
+                          )}
                         </span>
-                      )}
-                    </span>
-                    <span className="shrink-0 font-bold tabular-nums text-foreground dark:text-foreground-dark">
-                      {d.probability.toFixed(2)}%
-                    </span>
-                  </div>
-                  <div className="h-2.5 w-full overflow-hidden rounded-full bg-background dark:bg-background-dark">
-                    <div
-                      className="h-full rounded-full transition-all duration-500"
-                      style={{
-                        width: `${Math.max(2, (d.probability / maxProb) * 100)}%`,
-                        backgroundColor: d.team?.color || '#0ea5e9',
-                      }}
-                    />
-                  </div>
-                </li>
-              ))}
-            </ul>
+                      </td>
+                      <td className="px-2 py-2.5 text-right font-mono tabular-nums text-foreground dark:text-foreground-dark">
+                        {Number(d.features?.P_qual ?? 0).toFixed(3)}
+                      </td>
+                      <td className="px-2 py-2.5 text-right font-mono tabular-nums text-foreground dark:text-foreground-dark">
+                        {Number(d.features?.F_driver ?? 0).toFixed(3)}
+                      </td>
+                      <td className="px-2 py-2.5 text-right font-mono tabular-nums text-foreground dark:text-foreground-dark">
+                        {Number(d.features?.F_team ?? 0).toFixed(3)}
+                      </td>
+                      <td className="px-2 py-2.5 text-right font-mono tabular-nums text-foreground dark:text-foreground-dark">
+                        {Number(d.features?.H_track ?? 0).toFixed(3)}
+                      </td>
+                      <td className="px-2 py-2.5 text-right font-mono tabular-nums text-muted dark:text-muted-dark">
+                        {Number(d.score ?? 0).toFixed(4)}
+                      </td>
+                      <td className="px-6 py-2.5 text-right font-mono font-bold tabular-nums text-primary dark:text-accent">
+                        {Number(d.probability ?? 0).toFixed(2)}%
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="border-t border-border-soft px-6 py-3 text-xs text-muted dark:border-border-dark dark:text-muted-dark">
+              Вероятности нормированы: сумма по всем пилотам всегда ровно 100,00 %.
+              Округление — методом наибольшего остатка, поэтому отдельные значения
+              могут отличаться от простого округления на 0,01 п.п.
+            </p>
           </Card>
         </>
       )}

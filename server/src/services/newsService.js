@@ -8,6 +8,7 @@ const newsItemRepository = require('../repositories/newsItemRepository');
 const cacheService = require('../cache/cacheService');
 const cacheKeys = require('../cache/keys');
 const logger = require('../utils/logger');
+const { cleanSearch, cleanId } = require('../utils/queryParams');
 
 const parser = new XMLParser({
   ignoreAttributes: false,
@@ -385,16 +386,20 @@ async function getNews(options = {}) {
 
   const page = toPositiveInt(options.page, 1);
   const limit = Math.min(toPositiveInt(options.limit, DEFAULT_LIMIT), MAX_LIMIT);
+  const safeSearch = cleanSearch(search);
   const fromDate = parseDayBound(from, false);
   const toDate = parseDayBound(to, true);
 
   const pool = await loadPool();
-  const keywordGroups = await resolveKeywordGroups({ driverId, teamId }).catch(() => []);
+  const keywordGroups = await resolveKeywordGroups({
+    driverId: cleanId(driverId),
+    teamId: cleanId(teamId),
+  }).catch(() => []);
 
   const filtered = applyFilters(pool.items, {
     source,
     lang,
-    search,
+    search: safeSearch,
     keywordGroups,
     from: fromDate,
     to: toDate,

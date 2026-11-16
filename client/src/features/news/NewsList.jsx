@@ -5,6 +5,7 @@ import NewsCard from './NewsCard'
 import Card from '../../components/ui/Card'
 import Spinner from '../../components/ui/Spinner'
 import Select from '../../components/ui/Select'
+import DateInput from '../../components/ui/DateInput'
 import Input from '../../components/ui/Input'
 import Button from '../../components/ui/Button'
 
@@ -204,16 +205,14 @@ export default function NewsList() {
               <option value="en">English</option>
             </Select>
 
-            <Input
+            <DateInput
               label="С даты"
-              type="date"
               value={from}
               onChange={(e) => updateParam('from', e.target.value)}
             />
 
-            <Input
+            <DateInput
               label="По дату"
-              type="date"
               value={to}
               onChange={(e) => updateParam('to', e.target.value)}
             />
@@ -223,18 +222,17 @@ export default function NewsList() {
             <Input
               label="Поиск по словам"
               value={archiveForm.q}
+              maxLength={60}
               placeholder="Например: Verstappen"
               onChange={(e) => setArchiveForm({ ...archiveForm, q: e.target.value })}
             />
-            <Input
+            <DateInput
               label="С даты"
-              type="date"
               value={archiveForm.from}
               onChange={(e) => setArchiveForm({ ...archiveForm, from: e.target.value })}
             />
-            <Input
+            <DateInput
               label="По дату"
-              type="date"
               value={archiveForm.to}
               onChange={(e) => setArchiveForm({ ...archiveForm, to: e.target.value })}
             />

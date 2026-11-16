@@ -8,6 +8,7 @@ import { useToast } from '../components/ui/useToast'
 import Card from '../components/ui/Card'
 import Spinner from '../components/ui/Spinner'
 import Badge from '../components/ui/Badge'
+import Disclosure from '../components/ui/Disclosure'
 import VoteBoard from '../features/vote/VoteBoard'
 import VotersSummary from '../features/vote/VotersSummary'
 import CommentsList from '../features/vote/CommentsList'
@@ -166,6 +167,11 @@ export default function VotePage() {
 
   if (!doc) return null
 
+  const hasOwnVote = Boolean(
+    user && (doc.votes || []).some((vote) => Number(vote.userId) === Number(user.id)),
+  )
+  const commentsCount = (doc.comments || []).length
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -196,16 +202,28 @@ export default function VotePage() {
         </div>
         <p className="mt-2 text-sm text-muted dark:text-muted-dark">
           Расставьте ожидаемые финишные места всем {doc.entries.length} пилотам следующего Гран-при до старта уик-энда.
-          Общая картина всех голосов — «Народный рейтинг» ниже. Это общая фича сообщества; ваш личный прогноз
-          кабинета и расчёт алгоритма — отдельные функции.
+          Общая картина всех голосов — в «Народном рейтинге», ваш личный прогноз — в блоке «Мой прогноз».
         </p>
       </Card>
 
-      <VoteBoard doc={doc} user={user} onChanged={handleDocChanged} onBusyChange={setBoardBusy} />
-
+      {/* BUG-15: сначала общий народный рейтинг, затем личный прогноз и комментарии */}
       <VotersSummary doc={doc} user={user} stats={stats} onChanged={handleDocChanged} />
 
-      <CommentsList doc={doc} user={user} onChanged={handleCommentsChanged} />
+      <Disclosure
+        title="Мой прогноз"
+        subtitle={hasOwnVote ? 'сохранённый прогноз этой гонки' : 'расставьте пилотов по местам'}
+        defaultOpen={!hasOwnVote}
+      >
+        <VoteBoard doc={doc} user={user} onChanged={handleDocChanged} onBusyChange={setBoardBusy} />
+      </Disclosure>
+
+      <Disclosure
+        title="Комментарии"
+        subtitle={commentsCount > 0 ? `всего: ${commentsCount}` : 'пока нет'}
+        defaultOpen={false}
+      >
+        <CommentsList doc={doc} user={user} onChanged={handleCommentsChanged} showHeader={false} />
+      </Disclosure>
     </div>
   )
 }

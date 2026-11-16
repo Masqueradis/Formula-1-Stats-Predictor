@@ -1,9 +1,35 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import useDocumentTitle from '../hooks/useDocumentTitle'
 import api from '../api'
 import { useSocket } from '../context/useSocket'
 import Card from '../components/ui/Card'
 import Spinner from '../components/ui/Spinner'
+
+const SORTABLE = {
+  points: 'баллам',
+  predictions: 'количеству прогнозов',
+  exactHits: 'точным попаданиям',
+}
+
+function SortHeader({ label, sortKey, sort, onSort, align = 'right', className = '' }) {
+  const active = sort.key === sortKey
+  const arrow = active ? (sort.dir === 'asc' ? '▲' : '▼') : '↕'
+  return (
+    <th className={`${className} px-2 py-3 font-semibold text-muted dark:text-muted-dark`}>
+      <button
+        type="button"
+        onClick={() => onSort(sortKey)}
+        title={`Сортировать по ${SORTABLE[sortKey] || label}`}
+        className={`flex w-full items-center gap-1 transition-colors hover:text-foreground dark:hover:text-foreground-dark ${
+          align === 'right' ? 'justify-end' : 'justify-start'
+        } ${active ? 'text-foreground dark:text-foreground-dark' : ''}`}
+      >
+        {label}
+        <span aria-hidden className="text-[10px]">{arrow}</span>
+      </button>
+    </th>
+  )
+}
 
 /**
  * US-6 — рейтинг предсказателей (leaderboard).
@@ -18,6 +44,7 @@ export default function LeaderboardPage() {
   const [data, setData] = useState(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
+  const [sort, setSort] = useState({ key: 'points', dir: 'desc' })
 
   const load = useCallback(async () => {
     setError('')
@@ -47,6 +74,24 @@ export default function LeaderboardPage() {
 
   const users = data?.users || []
   const rules = data?.rules || { exact: 3, podium: 1 }
+
+  const sortedUsers = useMemo(() => {
+    const direction = sort.dir === 'asc' ? 1 : -1
+    return [...users].sort((a, b) => {
+      const diff = (Number(a[sort.key]) || 0) - (Number(b[sort.key]) || 0)
+      if (diff !== 0) return diff * direction
+      // При равенстве сохраняем порядок рейтинга по баллам
+      return (Number(a.rank) || 0) - (Number(b.rank) || 0)
+    })
+  }, [users, sort])
+
+  const handleSort = (key) => {
+    setSort((prev) => (
+      prev.key === key
+        ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
+        : { key, dir: 'desc' }
+    ))
+  }
 
   const rankBadge = (rank) => {
     if (rank === 1) return 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
@@ -80,8 +125,7 @@ export default function LeaderboardPage() {
             предсказан в ТОП-3 и реально финишировал в ТОП-3, но с другим местом
           </li>
           <li>
-            Учитываются оба вида прогнозов: народный (<span className="font-mono">full</span>) и
-            личный ТОП-3 из кабинета (<span className="font-mono">top3</span>)
+            Учитываются оба вида прогнозов: народный прогноз гонки и личный ТОП-3 из кабинета
           </li>
           <li>Не финишировал / нет результата — 0 баллов за пилота</li>
         </ul>
@@ -126,19 +170,13 @@ export default function LeaderboardPage() {
                     <th className="px-2 py-3 font-semibold text-muted dark:text-muted-dark">
                       Пользователь
                     </th>
-                    <th className="px-2 py-3 text-right font-semibold text-muted dark:text-muted-dark">
-                      Баллы
-                    </th>
-                    <th className="px-2 py-3 text-right font-semibold text-muted dark:text-muted-dark">
-                      Прогнозов
-                    </th>
-                    <th className="px-6 py-3 text-right font-semibold text-muted dark:text-muted-dark">
-                      Точных / ТОП-3
-                    </th>
+                    <SortHeader label="Баллы" sortKey="points" sort={sort} onSort={handleSort} className="text-right" />
+                    <SortHeader label="Прогнозов" sortKey="predictions" sort={sort} onSort={handleSort} className="text-right" />
+                    <SortHeader label="Точных / ТОП-3" sortKey="exactHits" sort={sort} onSort={handleSort} className="px-6 text-right" />
                   </tr>
                 </thead>
                 <tbody>
-                  {users.map((row) => (
+                  {sortedUsers.map((row) => (
                     <tr
                       key={row.userId}
                       className="border-b border-border-soft last:border-0 dark:border-border-dark"
