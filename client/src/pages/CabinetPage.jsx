@@ -2,7 +2,6 @@ import useDocumentTitle from '../hooks/useDocumentTitle'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
 import Card from '../components/ui/Card'
-import Top3Form from '../features/predictions/Top3Form'
 
 export default function CabinetPage() {
   useDocumentTitle('Личный кабинет')
@@ -92,9 +91,7 @@ export default function CabinetPage() {
         )}
       </Card>
 
-      {/* US-5: личный прогноз ТОП-3 (kind: 'top3', привязка к userId из JWT) */}
-      <Top3Form />
-
+      {/* US-5: API и данные kind='top3' сохранены, но блок в кабинете убран (BUG-10) */}
       <Card className="p-6">
         <h2 className="mb-3 text-lg font-bold text-foreground dark:text-foreground-dark">Прогнозы</h2>
         <p className="text-sm text-muted dark:text-muted-dark">
@@ -102,6 +99,8 @@ export default function CabinetPage() {
           <Link to="/vote" className="font-semibold text-primary underline dark:text-accent">странице «Голосование»</Link>{' '}
           (MongoDB, лаба 6). Вероятности алгоритма Softmax — в разделе{' '}
           <Link to="/predictions" className="font-semibold text-primary underline dark:text-accent">«Прогнозы»</Link>.
+          Личный ТОП-3 в кабинете больше не показывается, чтобы не дублировать народный прогноз —
+          участвуйте в голосовании и рейтинге там.
         </p>
       </Card>
     </div>

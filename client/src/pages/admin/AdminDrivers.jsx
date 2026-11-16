@@ -322,7 +322,7 @@ function DriverRow({ driver, teams, pending, onUpdate, onDelete, onArchive, onRe
           )}
         </div>
         <p className="mt-1 truncate text-sm text-muted dark:text-muted-dark">
-          {driver.nationality} · №{driver.number} · подиумы: {driver.podiums || 0}
+          {driver.nationalityRu || driver.nationality} · №{driver.number} · подиумы: {driver.podiums || 0}
           {driver.team ? ` · ${driver.team.name}` : ''}
         </p>
       </div>

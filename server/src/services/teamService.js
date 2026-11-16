@@ -2,6 +2,7 @@ const { buildCrudService, parseId } = require('./crudService');
 const teamRepository = require('../repositories/teamRepository');
 const { Team, SeasonTeam, RaceResult, sequelize } = require('../models');
 const { invalidateApiCache } = require('../cache/invalidate');
+const { toRussianNationality } = require('../utils/nationalities');
 
 const baseService = buildCrudService({
   repository: teamRepository,
@@ -34,8 +35,14 @@ function sanitizeTeam(team, season = null) {
       abbreviation: d.abbreviation,
       number: d.number,
       nationality: d.nationality,
+      nationalityRu: toRussianNationality(d.nationality),
     }));
-  return { ...rest, season, drivers };
+  return {
+    ...rest,
+    nationalityRu: toRussianNationality(rest.nationality),
+    season,
+    drivers,
+  };
 }
 
 async function currentSeason() {

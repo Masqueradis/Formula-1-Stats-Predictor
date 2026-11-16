@@ -15,6 +15,7 @@
     "sync:f1": "node src/scripts/syncF1.js",
     "reconcile:vote-roster": "node src/scripts/reconcileVoteRoster.js",
     "test": "jest --runInBand",
+    "lint": "find src tests -name '*.js' -not -path '*/node_modules/*' -print0 | xargs -0 -n1 node --check",
     "test:coverage": "jest --runInBand --coverage",
     "test:integration": "jest --runInBand tests/integration",
     "test:mongo": "INTEGRATION=1 jest --runInBand tests/integration/mongo.integration.test.js",

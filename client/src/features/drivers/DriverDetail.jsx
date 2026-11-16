@@ -122,7 +122,7 @@ export default function DriverDetail() {
               )}
             </div>
             <p className="mt-1 text-muted dark:text-muted-dark">
-              {driver.nationality}
+              {driver.nationalityRu || driver.nationality}
               {driver.number ? ` · №${driver.number}` : ''}
             </p>
             {driver.isCurrentSeason === false && driver.teamSeason && (

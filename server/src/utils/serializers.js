@@ -1,5 +1,7 @@
 'use strict';
 
+const { toRussianNationality } = require('./nationalities');
+
 function toPlain(record) {
   if (record == null) return record;
   if (typeof record.toJSON === 'function') return record.toJSON();
@@ -46,7 +48,13 @@ function sanitizeDriver(record, { currentSeason = null } = {}) {
     ? null
     : Number(teamSeason) === Number(currentSeason);
 
-  return { ...rest, team, teamSeason, isCurrentSeason };
+  return {
+    ...rest,
+    nationalityRu: toRussianNationality(rest.nationality),
+    team,
+    teamSeason,
+    isCurrentSeason,
+  };
 }
 
 function sanitizeRace(record) {

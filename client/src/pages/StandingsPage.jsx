@@ -6,16 +6,9 @@ import { useSocket } from '../context/useSocket'
 import Card from '../components/ui/Card'
 import Select from '../components/ui/Select'
 import Spinner from '../components/ui/Spinner'
+import { valueFor, NUMERIC_KEYS } from '../utils/tableSort'
 
-const NUMERIC_KEYS = ['wins', 'podiums', 'points']
 const EMPTY_STANDINGS = []
-
-function valueFor(row, key) {
-  if (key === 'driver') return `${row.lastName || ''} ${row.firstName || ''}`.toLowerCase()
-  // Пилоты: команда в row.team; зачёт конструкторов: название в row.name (BUG-09)
-  if (key === 'team') return (row.team?.name || row.name || '').toLowerCase()
-  return Number(row[key]) || 0
-}
 
 function SortHeader({ label, sortKey, sort, onSort, align = 'left' }) {
   const active = sort.key === sortKey

@@ -275,7 +275,7 @@ function TeamRow({ team, pending, onUpdate, onDelete, onArchive, onRestore }) {
           )}
         </div>
         <p className="mt-1 truncate text-sm text-muted dark:text-muted-dark">
-          {[team.principal, team.nationality].filter(Boolean).join(' · ')}
+          {[team.principal, team.nationalityRu || team.nationality].filter(Boolean).join(' · ')}
           {team.drivers?.length ? ` · пилотов: ${team.drivers.length}` : ''}
         </p>
       </div>

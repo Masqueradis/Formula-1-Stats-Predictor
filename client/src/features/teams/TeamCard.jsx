@@ -24,7 +24,7 @@ export default function TeamCard({ team }) {
             </p>
           )}
           {team.nationality && (
-            <p className="mt-0.5 text-sm text-muted dark:text-muted-dark">{team.nationality}</p>
+            <p className="mt-0.5 text-sm text-muted dark:text-muted-dark">{team.nationalityRu || team.nationality}</p>
           )}
 
           <div className="mt-3 flex min-w-0 items-center gap-2">

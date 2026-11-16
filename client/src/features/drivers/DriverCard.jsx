@@ -5,7 +5,7 @@ export default function DriverCard({ driver }) {
   const teamName = driver.team?.name || 'Без команды'
   const color = driver.team?.color || '#0ea5e9'
   const meta = [
-    driver.nationality,
+    driver.nationalityRu || driver.nationality,
     driver.number ? `№${driver.number}` : null,
     `подиумы: ${driver.podiums || 0}`,
   ].filter(Boolean).join(' · ')

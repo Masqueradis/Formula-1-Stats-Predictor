@@ -90,4 +90,11 @@ describe('sanitizeDriver — текущая команда (BUG-07)', () => {
 
     expect(sanitizeDriver(record, { currentSeason: 2026 }).team.name).toBe('Ferrari');
   });
+
+  test('nationalityRu добавляется без изменения исходной национальности (BUG-18)', () => {
+    const result = sanitizeDriver(driver({ nationality: 'British' }), { currentSeason: 2026 });
+
+    expect(result.nationality).toBe('British');
+    expect(result.nationalityRu).toBe('Великобритания');
+  });
 });

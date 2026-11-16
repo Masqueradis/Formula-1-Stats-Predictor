@@ -21,17 +21,17 @@ import Button from '../../components/ui/Button'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import { useToast } from '../../components/ui/useToast'
 import errorMessage from '../../utils/errorMessages'
+import { createCollisionStrategy } from './dndCollision'
 
 /**
  * BUG-05: pointerWithin точнее closestCenter для явной зоны возврата в пул.
  * Для клавиатуры/фолбэка оставляем rectIntersection и closestCenter.
  */
-function collisionDetectionStrategy(args) {
-  const pointer = pointerWithin(args)
-  if (pointer.length) return pointer
-  const rect = rectIntersection(args)
-  return rect.length ? rect : closestCenter(args)
-}
+const collisionDetectionStrategy = createCollisionStrategy({
+  pointerWithin,
+  rectIntersection,
+  closestCenter,
+})
 
 /** Перемешивание Фишера-Йейтса (для «Случайно») */
 function shuffle(items) {

@@ -73,7 +73,7 @@ export default function TeamDetail() {
             </div>
             <div>
               <dt className="text-muted dark:text-muted-dark">Национальность</dt>
-              <dd className="mt-1 font-semibold text-foreground dark:text-foreground-dark">{team.nationality || '—'}</dd>
+              <dd className="mt-1 font-semibold text-foreground dark:text-foreground-dark">{team.nationalityRu || team.nationality || '—'}</dd>
             </div>
             {team.url && (
               <div className="sm:col-span-2">
