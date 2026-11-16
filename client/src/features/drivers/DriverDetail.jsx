@@ -108,13 +108,28 @@ export default function DriverDetail() {
 
         <div className="flex flex-col gap-4 p-6 sm:flex-row sm:items-start sm:justify-between sm:p-8">
           <div>
-            <h1 className="text-3xl font-extrabold text-foreground dark:text-foreground-dark">
-              {driver.firstName} {driver.lastName}
-            </h1>
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-3xl font-extrabold text-foreground dark:text-foreground-dark">
+                {driver.firstName} {driver.lastName}
+              </h1>
+              {driver.isCurrentSeason === false && (
+                <span
+                  className="rounded-full border border-amber-400/60 bg-amber-400/10 px-2.5 py-1 text-xs font-bold uppercase tracking-wide text-amber-600 dark:text-amber-400"
+                  title="Пилот не заявлен в текущем сезоне"
+                >
+                  не участвует
+                </span>
+              )}
+            </div>
             <p className="mt-1 text-muted dark:text-muted-dark">
               {driver.nationality}
               {driver.number ? ` · №${driver.number}` : ''}
             </p>
+            {driver.isCurrentSeason === false && driver.teamSeason && (
+              <p className="mt-1 text-xs text-muted dark:text-muted-dark">
+                Последняя заявка: сезон {driver.teamSeason}
+              </p>
+            )}
 
             {driver.team && (
               <Link

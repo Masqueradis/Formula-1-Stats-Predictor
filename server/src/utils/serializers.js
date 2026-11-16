@@ -6,27 +6,47 @@ function toPlain(record) {
   return record;
 }
 
-function sanitizeDriver(record) {
+/**
+ * Эпик-13 (BUG-07): текущая команда — строка season_teams с максимальным
+ * сезоном (а не последняя по id: исторический бэкфилл добавляет записи позже).
+ * При равном сезоне приоритет у боевого пилота (isReserve=false), затем меньший id.
+ */
+function sanitizeDriver(record, { currentSeason = null } = {}) {
   const json = toPlain(record);
   if (!json || typeof json !== 'object') return json;
   const { seasonTeams, ...rest } = json;
 
+  const rows = Array.isArray(seasonTeams)
+    ? seasonTeams.filter(Boolean)
+    : seasonTeams
+      ? [seasonTeams]
+      : [];
+
+  const sorted = [...rows].sort((a, b) => {
+    const seasonDiff = (Number(b.season) || 0) - (Number(a.season) || 0);
+    if (seasonDiff !== 0) return seasonDiff;
+    const reserveDiff = Number(a.isReserve === true) - Number(b.isReserve === true);
+    if (reserveDiff !== 0) return reserveDiff;
+    return (Number(a.id) || 0) - (Number(b.id) || 0);
+  });
+
   let team = null;
   let teamSeason = null;
-  if (Array.isArray(seasonTeams) && seasonTeams.length) {
-    const last = seasonTeams[seasonTeams.length - 1];
-    team = last.team || null;
-    teamSeason = last.season ?? null;
-  } else if (seasonTeams && seasonTeams.team) {
-    team = seasonTeams.team;
-    teamSeason = seasonTeams.season ?? null;
+  const latest = sorted[0];
+  if (latest) {
+    team = latest.team || null;
+    teamSeason = latest.season ?? null;
   }
 
   if (team) {
     team = { id: team.id, name: team.name, color: team.color };
   }
 
-  return { ...rest, team, teamSeason };
+  const isCurrentSeason = currentSeason == null || teamSeason == null
+    ? null
+    : Number(teamSeason) === Number(currentSeason);
+
+  return { ...rest, team, teamSeason, isCurrentSeason };
 }
 
 function sanitizeRace(record) {

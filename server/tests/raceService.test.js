@@ -8,8 +8,12 @@
 
 jest.mock('../src/repositories/raceRepository');
 jest.mock('../src/services/predictionService');
+jest.mock('../src/realtime/io', () => ({
+  emitRaceStatus: jest.fn(),
+}));
 
 const raceRepository = require('../src/repositories/raceRepository');
+const realtime = require('../src/realtime/io');
 const raceService = require('../src/services/raceService');
 
 beforeEach(() => {
@@ -82,5 +86,54 @@ describe('raceService.create — нормализация формы админ�
     await expect(raceService.create({
       name: 'x', season: 2099, round: 1, broadcastUrl: 'youtube.com/live',
     })).rejects.toMatchObject({ status: 400, message: expect.stringContaining('http') });
+  });
+});
+
+describe('raceService.update — realtime-событие смены статуса (BUG-06)', () => {
+  const OLD = { id: 5, externalId: '2026-20', name: 'Brazilian Grand Prix', status: 'scheduled' };
+  const NEW = { id: 5, externalId: '2026-20', name: 'Brazilian Grand Prix', status: 'finished' };
+
+  beforeEach(() => {
+    raceRepository.findById.mockReset();
+    raceRepository.update.mockReset();
+    raceRepository.update.mockResolvedValue(NEW);
+  });
+
+  test('эмитит race:status с raceId/name/previous/status', async () => {
+    raceRepository.findById.mockResolvedValueOnce(OLD).mockResolvedValueOnce(NEW);
+
+    const result = await raceService.update(5, { status: 'finished' });
+
+    expect(raceRepository.update).toHaveBeenCalledWith(5, { status: 'finished' });
+    expect(realtime.emitRaceStatus).toHaveBeenCalledWith({
+      raceId: '2026-20',
+      name: 'Brazilian Grand Prix',
+      previous: 'scheduled',
+      status: 'finished',
+    });
+    expect(result).toMatchObject({ status: 'finished' });
+  });
+
+  test('для гонки без externalId ключом служит числовой id', async () => {
+    const old = { id: 7, externalId: null, name: 'Test GP', status: 'scheduled' };
+    const fresh = { id: 7, externalId: null, name: 'Test GP', status: 'cancelled' };
+    raceRepository.findById.mockResolvedValueOnce(old).mockResolvedValueOnce(fresh);
+    raceRepository.update.mockResolvedValue(fresh);
+
+    await raceService.update(7, { status: 'cancelled' });
+
+    expect(realtime.emitRaceStatus).toHaveBeenCalledWith(
+      expect.objectContaining({ raceId: '7', previous: 'scheduled', status: 'cancelled' }),
+    );
+  });
+
+  test('гонка не найдена → события нет', async () => {
+    raceRepository.findById.mockResolvedValueOnce(null);
+    raceRepository.update.mockResolvedValue(null);
+
+    const result = await raceService.update(999, { status: 'finished' });
+
+    expect(result).toMatchObject({ error: 'race not found', status: 404 });
+    expect(realtime.emitRaceStatus).not.toHaveBeenCalled();
   });
 });

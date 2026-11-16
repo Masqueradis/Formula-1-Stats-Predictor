@@ -9,6 +9,7 @@
 const { Types } = require('mongoose');
 
 jest.mock('../src/repositories/raceRepository');
+jest.mock('../src/repositories/raceResultRepository');
 jest.mock('../src/repositories/seasonTeamRepository');
 jest.mock('../src/repositories/userRepository');
 jest.mock('../src/repositories/predictionRepository');
@@ -18,6 +19,7 @@ jest.mock('../src/realtime/io', () => ({
 }));
 
 const raceRepository = require('../src/repositories/raceRepository');
+const raceResultRepository = require('../src/repositories/raceResultRepository');
 const seasonTeamRepository = require('../src/repositories/seasonTeamRepository');
 const userRepository = require('../src/repositories/userRepository');
 const predictionRepository = require('../src/repositories/predictionRepository');
@@ -131,6 +133,8 @@ beforeEach(() => {
   jest.clearAllMocks();
   raceRepository.findOne.mockResolvedValue(RACE);
   raceRepository.findById.mockResolvedValue(RACE);
+  // По умолчанию завершённых гонок с результатами нет → fallback на season_teams
+  raceResultRepository.findAllWithOptions.mockResolvedValue([]);
   seasonTeamRepository.findAll.mockResolvedValue(SEASON_TEAMS);
   predictionRepository.setFields.mockImplementation(async (raceId, fields) =>
     makeDoc({ raceId, ...fields }),
@@ -202,6 +206,73 @@ describe('чтение документа', () => {
     const data = await predictionService.getNext();
     expect(data.raceId).toBe('2026-1');
     expect(data.votingOpen).toBe(true);
+  });
+});
+
+describe('состав голосования (BUG-08, вариант A «Последняя гонка»)', () => {
+  const LAST_RACE = { ...RACE, id: 20, round: 20, status: 'finished' };
+
+  function finishedRaceLookup() {
+    raceRepository.findOne.mockImplementation(async (where = {}) => {
+      if (where.status === 'finished') return LAST_RACE;
+      return RACE;
+    });
+  }
+
+  test('берёт участников последней завершённой гонки, без дублей и спринтов', async () => {
+    finishedRaceLookup();
+    raceResultRepository.findAllWithOptions.mockResolvedValue([
+      {
+        sessionType: 'race',
+        position: 1,
+        driver: { id: 30, firstName: 'Lando', lastName: 'Norris', abbreviation: 'NOR', number: 1 },
+        team: { name: 'McLaren', color: '#ff8700' },
+      },
+      {
+        sessionType: 'sprint',
+        position: 1,
+        driver: { id: 99, firstName: 'Sprint', lastName: 'Only', abbreviation: 'SPR' },
+        team: { name: 'Sprint Team', color: '#000000' },
+      },
+      // Замена по ходу сезона: другой пилот той же команды
+      {
+        sessionType: 'race',
+        position: 2,
+        driver: { id: 31, firstName: 'Isack', lastName: 'Hadjar', abbreviation: 'HAD', number: 6 },
+        team: { name: 'Red Bull', color: '#3671c6' },
+      },
+      // Дубль в результатах не должен попасть в состав дважды
+      {
+        sessionType: 'race',
+        position: 3,
+        driver: { id: 30, firstName: 'Lando', lastName: 'Norris', abbreviation: 'NOR', number: 1 },
+        team: { name: 'McLaren', color: '#ff8700' },
+      },
+    ]);
+
+    predictionRepository.findByRaceId.mockResolvedValue(null);
+
+    const data = await predictionService.getByRaceId('2026-1');
+
+    expect(raceResultRepository.findAllWithOptions).toHaveBeenCalledWith({ raceId: 20 });
+    expect(data.entries.map((e) => e.driverId)).toEqual([30, 31]);
+    expect(data.entries[0]).toMatchObject({ lastName: 'Norris', teamName: 'McLaren' });
+    // season_teams не должен использоваться, когда есть завершённая гонка
+    expect(seasonTeamRepository.findAll).not.toHaveBeenCalled();
+  });
+
+  test('fallback на заявку сезона до первой завершённой гонки', async () => {
+    raceRepository.findOne.mockImplementation(async (where = {}) => {
+      if (where.status === 'finished') return null;
+      return RACE;
+    });
+    predictionRepository.findByRaceId.mockResolvedValue(null);
+
+    await predictionService.getByRaceId('2026-1');
+
+    expect(seasonTeamRepository.findAll).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ season: 2026, isReserve: false }) }),
+    );
   });
 });
 

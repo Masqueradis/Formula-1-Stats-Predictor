@@ -3,6 +3,7 @@
 const { Op } = require('sequelize');
 const { Types } = require('mongoose');
 const raceRepository = require('../repositories/raceRepository');
+const raceResultRepository = require('../repositories/raceResultRepository');
 const seasonTeamRepository = require('../repositories/seasonTeamRepository');
 const userRepository = require('../repositories/userRepository');
 const predictionRepository = require('../repositories/predictionRepository');
@@ -35,9 +36,52 @@ async function resolveRace(rawRaceId) {
   return null;
 }
 
-/** Состав пилотов сезона из PostgreSQL season_teams (снимок для документа).
- *  isReserve (резервисты/замены) исключаются — они не участвуют в Гран-при постоянно. */
-async function buildEntries(season) {
+function driverFields(driver) {
+  return {
+    driverId: driver.id,
+    firstName: driver.firstName || '',
+    lastName: driver.lastName,
+    abbreviation: driver.abbreviation || '',
+    number: driver.number ?? null,
+  };
+}
+
+/**
+ * Эпик-13 (BUG-08), вариант A «Последняя гонка»: состав голосования —
+ * участники последней завершённой гонки сезона. Автоматически учитывает
+ * замены (Камара/Хиракава), не даёт дублей (Lawson) и 4 пилотов в Haas.
+ */
+async function buildLastRaceEntries(season) {
+  const lastRace = await raceRepository.findOne(
+    { season, status: 'finished' },
+    { order: [['round', 'DESC'], ['date', 'DESC']] },
+  );
+  if (!lastRace) return null;
+
+  const results = await raceResultRepository.findAllWithOptions({ raceId: lastRace.id });
+  const raceRows = (results || [])
+    .filter((row) => (row.sessionType || 'race') === 'race')
+    .sort((a, b) => (a.position ?? 999) - (b.position ?? 999));
+  if (raceRows.length === 0) return null;
+
+  const entries = [];
+  const seen = new Set();
+  for (const row of raceRows) {
+    const driver = row.driver;
+    if (!driver || seen.has(driver.id)) continue;
+    seen.add(driver.id);
+    entries.push({
+      ...driverFields(driver),
+      teamName: row.team ? row.team.name : '',
+      teamColor: row.team ? row.team.color : '',
+    });
+  }
+  return entries.length ? entries : null;
+}
+
+/** Заявка сезона из season_teams — fallback до первой завершённой гонки.
+ *  isReserve (резервисты/замены) исключаются. */
+async function buildRosterEntries(season) {
   const seasonTeams = await seasonTeamRepository.findAll({
     where: { season, isReserve: false },
     include: [
@@ -53,16 +97,19 @@ async function buildEntries(season) {
     if (!driver || driver.isActive === false || seen.has(driver.id)) continue;
     seen.add(driver.id);
     entries.push({
-      driverId: driver.id,
-      firstName: driver.firstName || '',
-      lastName: driver.lastName,
-      abbreviation: driver.abbreviation || '',
-      number: driver.number ?? null,
+      ...driverFields(driver),
       teamName: st.team ? st.team.name : '',
       teamColor: st.team ? st.team.color : '',
     });
   }
   return entries;
+}
+
+/** Состав пилотов сезона для документа народного прогноза. */
+async function buildEntries(season) {
+  const lastRaceEntries = await buildLastRaceEntries(season);
+  if (lastRaceEntries) return lastRaceEntries;
+  return buildRosterEntries(season);
 }
 
 /**

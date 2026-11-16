@@ -12,7 +12,8 @@ const EMPTY_STANDINGS = []
 
 function valueFor(row, key) {
   if (key === 'driver') return `${row.lastName || ''} ${row.firstName || ''}`.toLowerCase()
-  if (key === 'team') return (row.name || '').toLowerCase()
+  // Пилоты: команда в row.team; зачёт конструкторов: название в row.name (BUG-09)
+  if (key === 'team') return (row.team?.name || row.name || '').toLowerCase()
   return Number(row[key]) || 0
 }
 

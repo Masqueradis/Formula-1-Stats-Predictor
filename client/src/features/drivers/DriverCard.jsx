@@ -27,9 +27,19 @@ export default function DriverCard({ driver }) {
         </div>
 
         <div className="flex flex-1 flex-col p-4 sm:p-5">
-          <h3 className="line-clamp-2 break-words text-lg font-bold leading-snug text-foreground dark:text-foreground-dark">
-            {driver.firstName} {driver.lastName}
-          </h3>
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="line-clamp-2 break-words text-lg font-bold leading-snug text-foreground dark:text-foreground-dark">
+              {driver.firstName} {driver.lastName}
+            </h3>
+            {driver.isCurrentSeason === false && (
+              <span
+                className="shrink-0 rounded-full border border-amber-400/60 bg-amber-400/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-600 dark:text-amber-400"
+                title="Пилот не заявлен в текущем сезоне"
+              >
+                не участвует
+              </span>
+            )}
+          </div>
           <p className="mt-0.5 text-sm text-muted dark:text-muted-dark">
             {meta}
           </p>

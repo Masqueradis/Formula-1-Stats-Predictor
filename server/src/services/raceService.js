@@ -1,6 +1,7 @@
 const { buildCrudService, parseId } = require('./crudService');
 const raceRepository = require('../repositories/raceRepository');
 const predictionService = require('./predictionService');
+const realtime = require('../realtime/io');
 const { sanitizeRace } = require('../utils/serializers');
 
 const baseService = buildCrudService({
@@ -117,8 +118,28 @@ async function create(data) {
   return baseService.create(normalizeRacePayload(data));
 }
 
+/**
+ * Эпик-13 (BUG-06): CRUD гонки в админке должен рассылать `race:status`,
+ * иначе `/vote` в других вкладках не узнаёт о смене статуса до перезагрузки.
+ * Ключ гонки — как в MongoDB: externalId, иначе числовой id.
+ */
+function raceKeyOf(race) {
+  return String(race.externalId || race.id);
+}
+
 async function update(rawId, data) {
-  return baseService.update(rawId, normalizeRacePayload(data));
+  const id = parseId(rawId);
+  const before = id !== null ? await raceRepository.findById(id) : null;
+  const updated = await baseService.update(rawId, normalizeRacePayload(data));
+  if (before && updated && !updated.error) {
+    realtime.emitRaceStatus({
+      raceId: raceKeyOf(updated),
+      name: updated.name,
+      previous: before.status,
+      status: updated.status,
+    });
+  }
+  return updated;
 }
 
 /**

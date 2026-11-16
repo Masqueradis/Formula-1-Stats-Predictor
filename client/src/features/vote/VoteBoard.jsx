@@ -6,6 +6,8 @@ import {
   PointerSensor,
   TouchSensor,
   closestCenter,
+  pointerWithin,
+  rectIntersection,
   useDraggable,
   useDroppable,
   useSensor,
@@ -16,7 +18,20 @@ import { CSS } from '@dnd-kit/utilities'
 import api from '../../api'
 import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
+import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import { useToast } from '../../components/ui/useToast'
+import errorMessage from '../../utils/errorMessages'
+
+/**
+ * BUG-05: pointerWithin точнее closestCenter для явной зоны возврата в пул.
+ * Для клавиатуры/фолбэка оставляем rectIntersection и closestCenter.
+ */
+function collisionDetectionStrategy(args) {
+  const pointer = pointerWithin(args)
+  if (pointer.length) return pointer
+  const rect = rectIntersection(args)
+  return rect.length ? rect : closestCenter(args)
+}
 
 /** Перемешивание Фишера-Йейтса (для «Случайно») */
 function shuffle(items) {
@@ -149,6 +164,7 @@ export default function VoteBoard({ doc, user, onChanged, onBusyChange }) {
   const [isDragging, setIsDragging] = useState(false) // активное перетаскивание
   const [dragState, setDragState] = useState(null) // data.current активного элемента во время drag
   const [overId, setOverId] = useState(null) // id текущей зоны слёта (slot-N | pool | null)
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   // Сообщаем наверх, что доска занята (перетаскивание/сохранение) —
   // страница не станет перезаписывать doc из live-событий в этот момент
@@ -303,7 +319,7 @@ export default function VoteBoard({ doc, user, onChanged, onBusyChange }) {
       setEditing(false)
       onChanged(data.data)
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Не удалось сохранить прогноз')
+      toast.error(errorMessage(err, 'Не удалось сохранить прогноз'))
     }
     setBusy(false)
   }
@@ -315,7 +331,7 @@ export default function VoteBoard({ doc, user, onChanged, onBusyChange }) {
       toast.success('Прогноз удалён')
       onChanged(data.data)
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Не удалось удалить прогноз')
+      toast.error(errorMessage(err, 'Не удалось удалить прогноз'))
     }
     setBusy(false)
   }
@@ -350,20 +366,35 @@ export default function VoteBoard({ doc, user, onChanged, onBusyChange }) {
 
   if (myVote && !editing) {
     return (
-      <Card className="p-6">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-lg font-bold text-foreground dark:text-foreground-dark">Мой прогноз</h2>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => setEditing(true)} disabled={busy}>
-              Изменить
-            </Button>
-            <Button variant="danger" size="sm" onClick={removeMyVote} disabled={busy}>
-              Удалить
-            </Button>
+      <>
+        <Card className="p-6">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-lg font-bold text-foreground dark:text-foreground-dark">Мой прогноз</h2>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => setEditing(true)} disabled={busy}>
+                Изменить
+              </Button>
+              <Button variant="danger" size="sm" onClick={() => setConfirmDelete(true)} disabled={busy}>
+                Удалить
+              </Button>
+            </div>
           </div>
-        </div>
-        <MyVoteSummary vote={myVote} entryById={entryById} />
-      </Card>
+          <MyVoteSummary vote={myVote} entryById={entryById} />
+        </Card>
+
+        <ConfirmDialog
+          open={confirmDelete}
+          title="Удалить прогноз?"
+          message="Прогноз будет удалён без возможности восстановления. До старта гонки можно проголосовать заново."
+          confirmLabel="Удалить"
+          busy={busy}
+          onConfirm={async () => {
+            await removeMyVote()
+            setConfirmDelete(false)
+          }}
+          onCancel={() => setConfirmDelete(false)}
+        />
+      </>
     )
   }
 
@@ -391,36 +422,36 @@ export default function VoteBoard({ doc, user, onChanged, onBusyChange }) {
       <p className="mb-4 text-sm text-muted dark:text-muted-dark">
         Перетащите пилота из списка слева на нужное место (или просто нажмите на него — он займёт первое свободное
         слото). Порядок слотов меняется перетаскиванием за «⠿», пилот убирается обратно в список крестиком или
-        переносом в колонку пилотов. «Случайно» заполняет только пустые слоты. Для отправки нужны все{' '}
+        переносом в зону «Вернуть в пул». «Случайно» заполняет только пустые слоты. Для отправки нужны все{' '}
         {entries.length} мест (перестановка 1..{entries.length}).
       </p>
 
       <DndContext
         sensors={sensors}
-        collisionDetection={closestCenter}
+        collisionDetection={collisionDetectionStrategy}
         onDragStart={handleDragStart}
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
         onDragCancel={handleDragCancel}
       >
         <div className="grid gap-6 lg:grid-cols-2">
-          {/* Пул свободных пилотов (droppable: сюда можно вернуть пилота со слота) */}
-          <div
-            ref={setPoolRef}
-            className={`rounded-lg ${
-              overId === 'pool' && dragState?.type === 'slot'
-                ? 'ring-2 ring-primary ring-offset-2 dark:ring-accent dark:ring-offset-background-dark'
-                : ''
-            }`}
-          >
+          {/* Пул свободных пилотов + явная зона возврата (BUG-05) */}
+          <div>
             <h3 className="mb-2 text-sm font-bold uppercase tracking-wide text-muted dark:text-muted-dark">
               Свободные пилоты ({pool.length})
             </h3>
-            {overId === 'pool' && dragState?.type === 'slot' && (
-              <p className="mb-2 text-xs font-semibold text-primary dark:text-accent">
-                Отпустите здесь — пилот вернётся в список
-              </p>
-            )}
+            <div
+              ref={setPoolRef}
+              className={`mb-2 flex min-h-[68px] items-center justify-center rounded-lg border-2 border-dashed px-3 py-3 text-center text-xs font-semibold transition-colors ${
+                overId === 'pool' && dragState?.type === 'slot'
+                  ? 'border-primary bg-primary/10 text-primary dark:border-accent dark:bg-accent/10 dark:text-accent'
+                  : 'border-border-soft text-muted dark:border-border-dark dark:text-muted-dark'
+              }`}
+            >
+              {overId === 'pool' && dragState?.type === 'slot'
+                ? 'Отпустите — пилот вернётся в пул'
+                : 'Вернуть в пул — перетащите сюда пилота со слота'}
+            </div>
             <div className="flex flex-col gap-1.5">
               {pool.map((e) => (
                 <PoolChip key={e.driverId} entry={e} canAssign={canEdit && emptySlots.length > 0} onPick={assignToFirstEmpty} />

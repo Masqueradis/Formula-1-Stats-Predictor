@@ -6,9 +6,12 @@ const { invalidateApiCache } = require('../cache/invalidate');
 
 const CURRENT_SEASON_DEFAULT = 2026;
 
-function clean(record) {
-  if (Array.isArray(record)) return record.map(sanitizeDriver);
-  return sanitizeDriver(record);
+/** Эпик-13 (BUG-07): сериализация с признаком участия в текущем сезоне. */
+async function clean(record) {
+  const season = await currentSeason();
+  const options = { currentSeason: season };
+  if (Array.isArray(record)) return record.map((item) => sanitizeDriver(item, options));
+  return sanitizeDriver(record, options);
 }
 
 async function currentSeason() {
@@ -53,7 +56,7 @@ async function getById(rawId) {
   // includeInactive: архивные пилоты открываются из исторических Гран-при
   const record = await driverRepository.findByIdWithDetails(id, { includeInactive: true });
   if (!record) return { error: 'Пилот не найден', status: 404 };
-  return sanitizeDriver(record);
+  return clean(record);
 }
 
 async function create(data) {
@@ -72,7 +75,7 @@ async function create(data) {
   await invalidateApiCache();
 
   const full = await driverRepository.findByIdWithDetails(record.id, { includeInactive: true });
-  return sanitizeDriver(full);
+  return clean(full);
 }
 
 async function update(rawId, data) {
@@ -96,7 +99,7 @@ async function update(rawId, data) {
   await invalidateApiCache();
 
   const full = await driverRepository.findByIdWithDetails(id, { includeInactive: true });
-  return sanitizeDriver(full);
+  return clean(full);
 }
 
 module.exports = {
