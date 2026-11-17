@@ -11,15 +11,20 @@ function htmlEscape(value) {
 
 let transport;
 
-function isProduction() {
-  return process.env.NODE_ENV === 'production';
+/**
+ * Почта не используется в прод-конфигурации эпика-12.
+ * Отправка включается только явным EMAIL_ENABLED=true — это исключает
+ * попытки SMTP-подключения (и зависание на Render Free, где порты 25/465/587 закрыты).
+ */
+function isEmailEnabled() {
+  return process.env.EMAIL_ENABLED === 'true';
 }
 
-/** По умолчанию: MailHog в dev, Brevo SMTP в prod. */
+/** По умолчанию локальный MailHog; любой SMTP-провайдер задаётся переменными. */
 function smtpConfig() {
   return {
-    host: process.env.SMTP_HOST || (isProduction() ? 'smtp.brevo.com' : 'localhost'),
-    port: Number(process.env.SMTP_PORT || (isProduction() ? 587 : 1025)),
+    host: process.env.SMTP_HOST || 'localhost',
+    port: Number(process.env.SMTP_PORT || 1025),
     secure: process.env.SMTP_SECURE === 'true',
     requireTLS: process.env.SMTP_REQUIRE_TLS === 'true',
     user: process.env.SMTP_USER || '',
@@ -27,17 +32,17 @@ function smtpConfig() {
   };
 }
 
-/**
- * В проде без SMTP-учёток и подтверждённого отправителя письма не уйдут,
- * поэтому регистрация не должна создавать «висячий» не подтверждённый аккаунт.
- * В dev достаточно локального MailHog (авторизация не нужна).
- */
 function missingMailConfig() {
-  if (!isProduction()) return [];
+  if (!isEmailEnabled()) return ['EMAIL_ENABLED'];
   const config = smtpConfig();
   const missing = [];
-  if (!config.user) missing.push('SMTP_USER');
-  if (!config.pass) missing.push('SMTP_PASS');
+  if (!config.host) missing.push('SMTP_HOST');
+  if (!config.port) missing.push('SMTP_PORT');
+  // Локальный MailHog не требует авторизации; внешний SMTP — требует.
+  if (config.host !== 'localhost' && config.host !== '127.0.0.1') {
+    if (!config.user) missing.push('SMTP_USER');
+    if (!config.pass) missing.push('SMTP_PASS');
+  }
   if (!process.env.MAIL_FROM) missing.push('MAIL_FROM');
   return missing;
 }
@@ -169,6 +174,7 @@ function sendRaceReminderEmail(to, username, race, favoriteDrivers = []) {
 }
 
 module.exports = {
+  isEmailEnabled,
   isEmailConfigured,
   missingMailConfig,
   smtpConfig,

@@ -89,6 +89,10 @@ module.exports = {
     await queryInterface.bulkInsert('users', [
       { username: 'admin', email: 'admin@f1stats.test', passwordHash: '$2b$10$PdvgdIQTw2oa5gD0BuEI6eWPFXfa0a.JRKyw4aQHkkn9nUpwKep0e', role: 'ADMIN', isVerified: true, verificationToken: null, createdAt: new Date(), updatedAt: new Date() },
       { username: 'maxfan', email: 'maxfan@f1stats.test', passwordHash: '$2b$10$X61gU0qBJdza4hPW5/YAMuc8qXTRozBr0F6vkFFQhW9AnQwjLpTSu', role: 'USER', isVerified: true, verificationToken: null, createdAt: new Date(), updatedAt: new Date() },
+      { username: 'ferrarifan', email: 'ferrarifan@f1stats.test', passwordHash: '$2b$10$FVG4Ti1tb53T/AUIvdNlfui4clTCLOA77MJrmlWWlCzs9A02n1Tsm', role: 'USER', isVerified: true, verificationToken: null, createdAt: new Date(), updatedAt: new Date() },
+      { username: 'mclarenfan', email: 'mclarenfan@f1stats.test', passwordHash: '$2b$10$ZBkMKtaufw.pQyBRf64DrOIViQkwHzxpgNmx9zE55H8SLyEeKkDfO', role: 'USER', isVerified: true, verificationToken: null, createdAt: new Date(), updatedAt: new Date() },
+      { username: 'redbullfan', email: 'redbullfan@f1stats.test', passwordHash: '$2b$10$e3OTSlIXyYyfE95DxxTtiurTNwvQFJUGO/o6i/dgaV9QsBx6kLE4m', role: 'USER', isVerified: true, verificationToken: null, createdAt: new Date(), updatedAt: new Date() },
+      { username: 'alpinefan', email: 'alpinefan@f1stats.test', passwordHash: '$2b$10$i/cxRxH78bBfCJ7lnLx0Me1u9t9KdTVaBjHk47pUda7wQ9Ubtwky2', role: 'USER', isVerified: true, verificationToken: null, createdAt: new Date(), updatedAt: new Date() },
     ], {});
 
     await queryInterface.bulkInsert('teams', teamRows(), {});

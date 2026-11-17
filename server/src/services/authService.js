@@ -57,12 +57,13 @@ async function register({ username, email, password }) {
   });
 
   const sent = await deliverEmail(sendVerificationEmail, user.email, token);
-  if (!sent.ok && process.env.NODE_ENV === 'production') {
+  // Исключение только для автотестов: без MailHog они всё равно создают пользователя.
+  if (!sent.ok && process.env.NODE_ENV !== 'test') {
     // Не оставляем аккаунт, для которого пользователь никогда не получит ссылку.
     await userRepository.remove(user.id);
     logger.error('auth.register.mail_failed', { userId: user.id, reason: sent.error });
     return {
-      error: 'Не удалось отправить письмо подтверждения. Попробуйте позже.',
+      error: mailFailureMessage(sent, 'Не удалось отправить письмо подтверждения. Попробуйте позже.'),
       status: 503,
       details: sent.error,
     };
@@ -73,11 +74,20 @@ async function register({ username, email, password }) {
 
   return {
     data: {
-      message: 'Регистрация успешна. Проверьте почту, чтобы подтвердить email.',
+      message: sent.ok
+        ? 'Регистрация успешна. Проверьте почту, чтобы подтвердить email.'
+        : 'Аккаунт создан, но письмо не отправлено (почта отключена). Используйте демо-аккаунты.',
       emailDelivered: sent.ok,
     },
     status: 201,
   };
+}
+
+function mailFailureMessage(sent, fallback) {
+  if (sent.error?.startsWith('SMTP is not configured')) {
+    return 'Регистрация временно недоступна. Используйте демо-аккаунты.';
+  }
+  return fallback;
 }
 
 /** Отправка письма не должна ронять регистрацию: причина возвращается вызывающему. */
@@ -134,9 +144,10 @@ async function resendVerification(rawEmail) {
   await user.update({ verificationToken: tokenHash, verificationExpiresAt: expiresAt });
 
   const sent = await deliverEmail(sendVerificationEmail, user.email, token);
-  if (!sent.ok && process.env.NODE_ENV === 'production') {
+  // Исключение только для автотестов: без MailHog они всё равно создают пользователя.
+  if (!sent.ok && process.env.NODE_ENV !== 'test') {
     return {
-      error: 'Не удалось отправить письмо подтверждения. Попробуйте позже.',
+      error: mailFailureMessage(sent, 'Не удалось отправить письмо подтверждения. Попробуйте позже.'),
       status: 503,
       details: sent.error,
     };

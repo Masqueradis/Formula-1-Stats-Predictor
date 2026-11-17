@@ -12,6 +12,7 @@
     "db:seed": "sequelize-cli db:seed:all",
     "db:seed:undo": "sequelize-cli db:seed:undo:all",
     "seed:mongo": "node src/scripts/seedMongo.js",
+    "seed:demo-users": "node src/scripts/seedDemoUsers.js",
     "sync:f1": "node src/scripts/syncF1.js",
     "reconcile:vote-roster": "node src/scripts/reconcileVoteRoster.js",
     "test": "jest --runInBand",

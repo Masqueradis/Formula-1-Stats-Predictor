@@ -215,6 +215,30 @@ describe('authService — подтверждение email (эпик-12)', () =>
       });
 
       expect(result.status).toBe(503);
+      expect(result.error).toBe('Регистрация временно недоступна. Используйте демо-аккаунты.');
+      expect(userRepository.remove).toHaveBeenCalledWith(42);
+    } finally {
+      process.env.NODE_ENV = originalNodeEnv;
+    }
+  });
+
+  test('отказ почты в любом окружении кроме test тоже откатывает пользователя', async () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'development';
+    sendVerificationEmail.mockResolvedValue({
+      ok: false,
+      error: 'SMTP is not configured (missing: EMAIL_ENABLED)',
+    });
+
+    try {
+      const result = await authService.register({
+        username: 'fan',
+        email: 'fan@test.local',
+        password: 'secret1',
+      });
+
+      expect(result.status).toBe(503);
+      expect(result.error).toBe('Регистрация временно недоступна. Используйте демо-аккаунты.');
       expect(userRepository.remove).toHaveBeenCalledWith(42);
     } finally {
       process.env.NODE_ENV = originalNodeEnv;
