@@ -19,9 +19,9 @@ services:
       - key: JWT_SECRET
         generateValue: true
       - key: CORS_ORIGINS
-        value: https://simply-lovely.netlify.app
+        value: https://tourmaline-wisp-d2b6de.netlify.app
       - key: FRONTEND_URL
-        value: https://simply-lovely.netlify.app
+        value: https://tourmaline-wisp-d2b6de.netlify.app
       - key: SMTP_HOST
         sync: false
       - key: SMTP_PORT
