@@ -160,6 +160,35 @@ function normalizeTeamScore(points, max) {
   return Math.max(0, Math.min(1, points / max));
 }
 
+/**
+ * Эпик-13 (BUG-08, регресс 17.11): авторитетный состав — участники последней
+ * завершённой гонки сезона (те же правила, что и в народном прогнозе).
+ * Возвращает Map<driverId, teamId> или null, если результатов ещё нет.
+ */
+function lastRaceGrid(seasonResults) {
+  const rows = (seasonResults || []).filter(
+    (r) => (r.sessionType || 'race') === 'race' && r.race,
+  );
+  if (!rows.length) return null;
+
+  const lastRace = rows.reduce((best, r) => {
+    const date = String(r.race.date || '');
+    const bestDate = String(best.race.date || '');
+    if (date !== bestDate) return date > bestDate ? r : best;
+    return (Number(r.race.round) || 0) > (Number(best.race.round) || 0) ? r : best;
+  });
+
+  const lastRaceId = lastRace.raceId ?? lastRace.race.id;
+  const grid = new Map();
+  for (const r of rows) {
+    if ((r.raceId ?? r.race.id) !== lastRaceId) continue;
+    const driverId = Number(r.driverId ?? r.driver?.id);
+    if (!Number.isFinite(driverId) || grid.has(driverId)) continue;
+    grid.set(driverId, r.teamId == null ? null : Number(r.teamId));
+  }
+  return grid.size ? grid : null;
+}
+
 async function getNextProbabilities() {
   const race = await probabilityRepository.findNextRace();
   if (!race) throw httpError(404, 'No upcoming race scheduled');
@@ -187,18 +216,36 @@ async function getNextProbabilities() {
 
   const circuitByDriver = groupByDriver(circuitResults);
 
-  // У пилота может быть несколько строк состава за сезон (напр. Lawson 2026: Racing Bulls + Red Bull) —
-  // дедуплицируем по driverId, команда берётся из последней строки по id SeasonTeam.
+  // BUG-08 (регресс 17.11): у пилота может быть несколько строк season_teams
+  // (Lawson: Racing Bulls + Red Bull), а резервисты (Ocon/Hirakawa) остаются
+  // активными после рассинхрона сидера. Авторитетный источник — сетка последней
+  // завершённой гонки: не участвовавших исключаем, дубли resolved по teamId.
+  // До первой гонки сетки нет — fallback на боевую строку с меньшим id.
+  const grid = lastRaceGrid(seasonResults);
   const sortedRoster = Array.isArray(roster)
-    ? [...roster].sort((a, b) => Number(a.id || 0) - Number(b.id || 0))
+    ? [...roster].sort((a, b) => {
+        const reserveDiff = Number(a.isReserve === true) - Number(b.isReserve === true);
+        if (reserveDiff !== 0) return reserveDiff;
+        return Number(a.id || 0) - Number(b.id || 0);
+      })
     : roster;
-  const rosterByDriver = new Map();
+  const candidatesByDriver = new Map();
   for (const st of sortedRoster) {
     const driver = st.driver;
     const team = st.team;
     if (!driver || driver.isActive === false) continue;
     if (!team || team.isActive === false) continue;
-    rosterByDriver.set(driver.id, { driver, team });
+    if (!candidatesByDriver.has(driver.id)) candidatesByDriver.set(driver.id, []);
+    candidatesByDriver.get(driver.id).push({ driver, team });
+  }
+  const rosterByDriver = new Map();
+  for (const [driverId, options] of candidatesByDriver) {
+    if (grid && !grid.has(driverId)) continue;
+    const gridTeamId = grid ? grid.get(driverId) : null;
+    const chosen = gridTeamId != null
+      ? options.find(({ team }) => team.id === gridTeamId)
+      : null;
+    rosterByDriver.set(driverId, chosen || options[0]);
   }
 
   const drivers = [];
@@ -312,6 +359,8 @@ async function getNextProbabilities() {
       previousSeason,
       formWindow: FORM_RACES,
       usesPreviousSeason,
+      // BUG-08: сколько пилотов пришло из сетки последней гонки (0 — гонок ещё нет)
+      gridFromLastRace: grid ? grid.size : 0,
     },
     drivers,
   };

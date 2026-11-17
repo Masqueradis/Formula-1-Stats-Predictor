@@ -643,7 +643,8 @@ module.exports = {
     },
     {
       "driverExternalId": "ocon",
-      "teamExternalId": "haas"
+      "teamExternalId": "haas",
+      "isReserve": true
     },
     {
       "driverExternalId": "albon",
@@ -659,11 +660,13 @@ module.exports = {
     },
     {
       "driverExternalId": "lawson",
-      "teamExternalId": "red_bull"
+      "teamExternalId": "red_bull",
+      "isReserve": true
     },
     {
       "driverExternalId": "tsunoda",
-      "teamExternalId": "rb"
+      "teamExternalId": "rb",
+      "isReserve": true
     },
     {
       "driverExternalId": "stroll",

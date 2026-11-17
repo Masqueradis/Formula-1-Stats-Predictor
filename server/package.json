@@ -24,6 +24,7 @@
     "sync:history:dump": "node src/scripts/importDumpHistory.js"
   },
   "jest": {
+    "setupFiles": ["<rootDir>/tests/setupEnv.js"],
     "coverageThreshold": {
       "**/src/services/probabilityService.js": {
         "statements": 60,

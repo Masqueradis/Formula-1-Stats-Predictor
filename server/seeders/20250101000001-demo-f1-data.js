@@ -109,8 +109,9 @@ module.exports = {
         season: season.season,
         driverId: driverIds.get(s.driverExternalId),
         teamId: teamIds.get(s.teamExternalId),
-        // Тсунода-2026 — резервист (разовый старт), не входит в состав гонок для голосования
-        isReserve: s.driverExternalId === 'tsunoda',
+        // Резервисты помечены в данных сезона (seasonTeamsOrdered): Tsunoda,
+        // Ocon, Lawson@Red Bull. Не попадают в состав для голосования/прогнозов.
+        isReserve: s.isReserve === true,
         createdAt: new Date(),
         updatedAt: new Date(),
       }));

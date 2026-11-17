@@ -158,4 +158,47 @@ describe('getNextProbabilities', () => {
     expect(leclerc.formSource).toBe('current');
     expect(leclerc.features.H_track).toBeGreaterThan(0);
   });
+
+  test('BUG-08: дубль Lawson и лишние пилоты Haas не попадают в прогноз', async () => {
+    // Реальный прод-сценарий 17.11: 4 Haas, Lawson в двух командах,
+    // строка с бóльшим id (Red Bull) раньше перекрывала Racing Bulls.
+    probabilityRepository.findRoster.mockResolvedValue([
+      seasonTeam(11, 101, 'Lawson', 5, 'Racing Bulls'),
+      seasonTeam(20, 101, 'Lawson', 1, 'Red Bull'),
+      seasonTeam(7, 102, 'Bearman', 6, 'Haas'),
+      seasonTeam(16, 103, 'Ocon', 6, 'Haas'),
+      seasonTeam(682, 104, 'Hirakawa', 6, 'Haas'),
+      seasonTeam(12, 105, 'Camara', 6, 'Haas'),
+    ]);
+    probabilityRepository.findSeasonResults.mockImplementation(async (season) =>
+      season === 2026
+        ? [
+            result(101, 1, 19, 19, 15, 9, 2),
+            result(101, 5, 20, 20, 12, 8, 4),
+            result(102, 6, 20, 20, 14, 10, 1),
+            result(105, 6, 20, 20, 16, 11, 0),
+          ]
+        : PREVIOUS_RESULTS,
+    );
+
+    const resultData = await probabilityService.getNextProbabilities();
+    const teams = resultData.drivers.map((d) => d.team.name);
+
+    expect(resultData.drivers.map((d) => d.id).sort()).toEqual([101, 102, 105]);
+    expect(resultData.basis.gridFromLastRace).toBe(3);
+    expect(teams.filter((name) => name === 'Haas')).toHaveLength(2);
+    expect(resultData.drivers.find((d) => d.id === 101).team.name).toBe('Racing Bulls');
+  });
+
+  test('до первой гонки состав берётся из заявки (gridFromLastRace=0)', async () => {
+    probabilityRepository.findSeasonResults.mockImplementation(async (season) =>
+      season === 2026 ? [] : PREVIOUS_RESULTS,
+    );
+
+    const resultData = await probabilityService.getNextProbabilities();
+
+    expect(resultData.basis.gridFromLastRace).toBe(0);
+    expect(resultData.drivers.map((d) => d.id).sort()).toEqual([1, 2, 3]);
+    expect(resultData.drivers.find((d) => d.id === 1).team.name).toBe('Red Bull');
+  });
 });

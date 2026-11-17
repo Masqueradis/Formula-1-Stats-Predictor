@@ -34,7 +34,7 @@ async function run() {
 
   for (let season = start; season <= end; season += 1) {
     try {
-      const summary = await syncSeason(season, { refreshActive: false });
+      const summary = await syncSeason(season, { refreshActive: false, reconcileRoster: false });
       totals.races += summary.races;
       totals.results += summary.results;
       totals.teams += summary.teams;

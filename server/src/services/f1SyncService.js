@@ -5,6 +5,7 @@ const { Team, Driver, Race, SeasonTeam, RaceResult, sequelize } = require('../mo
 const { TEAM_META } = require('../data/teamMeta');
 const jolpica = require('../clients/jolpicaClient');
 const { invalidateApiCache } = require('../cache/invalidate');
+const { reconcileVoteRoster } = require('./voteRosterService');
 
 function today() {
   return new Date().toISOString().slice(0, 10);
@@ -376,6 +377,23 @@ async function syncSeason(rawSeason, options = {}) {
 
   if (options.refreshActive !== false) {
     summary.active = await refreshActiveFlags();
+  }
+
+  // BUG-08: синк добавляет строки season_teams для замен пилотов — сразу
+  // помечаем не участвовавших в последней гонке как резервистов.
+  // Массовый импорт истории отключает сверку явно (reconcileRoster: false).
+  if (options.reconcileRoster !== false) {
+    try {
+      const roster = await reconcileVoteRoster(season, { apply: true });
+      summary.voteRoster = {
+        applied: roster.applied,
+        changes: roster.changes.length,
+        lastRace: roster.lastRace ? roster.lastRace.round : null,
+      };
+    } catch (err) {
+      // Синк должен остаться успешным даже если сверка не прошла.
+      summary.errors.push(`voteRoster: ${err.message}`);
+    }
   }
 
   summary.statusChanges = statusChanges;

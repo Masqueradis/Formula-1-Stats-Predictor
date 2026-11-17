@@ -1,4 +1,5 @@
 const { RaceResult, Race, SeasonTeam, Driver, Team } = require('../models');
+const { pickCurrentSeasonTeam } = require('../utils/serializers');
 
 function toNumber(value) {
   const n = Number(value);
@@ -26,9 +27,12 @@ async function getDriversStandings(season) {
 
   const byDriver = new Map();
   const teamByDriver = new Map();
+  const seasonTeamsByDriver = new Map();
 
   for (const st of seasonTeams) {
-    if (st.team) teamByDriver.set(st.driverId, st.team);
+    const driverKey = Number(st.driverId);
+    if (!seasonTeamsByDriver.has(driverKey)) seasonTeamsByDriver.set(driverKey, []);
+    seasonTeamsByDriver.get(driverKey).push(st);
     const driver = st.driver;
     if (!driver || byDriver.has(driver.id)) continue;
     byDriver.set(driver.id, {
@@ -40,6 +44,13 @@ async function getDriversStandings(season) {
       podiums: 0,
       points: 0,
     });
+  }
+
+  // BUG-08: раньше бралась последняя строка (id) — дубль Lawson в Red Bull
+  // перекрывал Racing Bulls. Helper учитывает isReserve и сезон.
+  for (const [driverId, rows] of seasonTeamsByDriver) {
+    const current = pickCurrentSeasonTeam(rows);
+    if (current?.team) teamByDriver.set(driverId, current.team);
   }
 
   const rows = await RaceResult.findAll({
