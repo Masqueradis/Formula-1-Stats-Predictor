@@ -9,7 +9,7 @@ import errorMessage from '../utils/errorMessages'
 
 export default function LoginPage() {
   useDocumentTitle('Вход')
-  const { login } = useAuth()
+  const { login, resendVerification } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const from = location.state?.from || '/'
@@ -17,6 +17,8 @@ export default function LoginPage() {
   const [form, setForm] = useState({ email: '', password: '' })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [resendStatus, setResendStatus] = useState('')
+  const [resending, setResending] = useState(false)
 
   const handleChange = (e) => {
     setForm(f => ({ ...f, [e.target.name]: e.target.value }))
@@ -26,6 +28,7 @@ export default function LoginPage() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
+    setResendStatus('')
     setLoading(true)
     try {
       await login(form.email, form.password)
@@ -34,6 +37,23 @@ export default function LoginPage() {
       setError(errorMessage(err, 'Не удалось войти. Проверьте данные и попробуйте ещё раз.'))
     } finally {
       setLoading(false)
+    }
+  }
+
+  const needsVerification = /не подтверждён|not verified/i.test(error)
+  const emailLooksValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)
+
+  const handleResend = async () => {
+    setError('')
+    setResendStatus('')
+    setResending(true)
+    try {
+      const result = await resendVerification(form.email)
+      setResendStatus(result?.message || 'Письмо отправлено повторно.')
+    } catch (err) {
+      setError(errorMessage(err, 'Не удалось отправить письмо повторно.'))
+    } finally {
+      setResending(false)
     }
   }
 
@@ -51,6 +71,16 @@ export default function LoginPage() {
 
           {error && (
             <p role="alert" className="rounded-md bg-red-500/10 px-3 py-2 text-sm font-medium text-red-500">{error}</p>
+          )}
+          {resendStatus && (
+            <p role="status" className="rounded-md bg-emerald-500/10 px-3 py-2 text-sm text-emerald-600 dark:text-emerald-400">
+              {resendStatus}
+            </p>
+          )}
+          {needsVerification && emailLooksValid && (
+            <Button variant="outline" className="w-full" onClick={handleResend} disabled={resending}>
+              {resending ? 'Отправляем…' : 'Отправить письмо подтверждения ещё раз'}
+            </Button>
           )}
 
           <Button type="submit" className="w-full" disabled={loading}>

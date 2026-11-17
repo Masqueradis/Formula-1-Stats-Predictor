@@ -6,7 +6,7 @@
 
 const EXACT = {
   'Invalid credentials': 'Неверный email или пароль.',
-  'Email not verified. Check your inbox.': 'Email не подтверждён. Проверьте почту.',
+  'Email not verified. Check your inbox.': 'Email не подтверждён. Проверьте почту или запросите ссылку повторно.',
   'Email already registered': 'Этот email уже зарегистрирован.',
   'Password must be at least 6 characters long': 'Пароль должен содержать минимум 6 символов.',
   'username, email and password are required': 'Заполните имя пользователя, email и пароль.',
@@ -29,6 +29,7 @@ const EXACT = {
   'Driver already in favorites': 'Пилот уже в избранном.',
   'Team already in favorites': 'Команда уже в избранном.',
   'Too many requests, please try again later.': 'Слишком много запросов. Попробуйте позже.',
+  'SMTP is not configured': 'Почтовый сервис не настроен. Обратитесь к администратору.',
 }
 
 const PATTERNS = [

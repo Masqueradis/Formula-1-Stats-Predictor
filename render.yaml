@@ -23,11 +23,13 @@ services:
       - key: FRONTEND_URL
         value: https://tourmaline-wisp-d2b6de.netlify.app
       - key: SMTP_HOST
-        sync: false
+        value: smtp.brevo.com
       - key: SMTP_PORT
-        sync: false
+        value: "587"
       - key: SMTP_SECURE
-        sync: false
+        value: "false"
+      - key: SMTP_REQUIRE_TLS
+        value: "false"
       - key: SMTP_USER
         sync: false
       - key: SMTP_PASS

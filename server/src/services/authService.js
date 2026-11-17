@@ -1,9 +1,9 @@
-const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { JWT_SECRET } = require('../middleware/authenticate');
 const userRepository = require('../repositories/userRepository');
 const { sendVerificationEmail, sendWelcomeEmail } = require('./emailService');
+const { generateVerificationToken, hashToken, isExpired } = require('../utils/verificationToken');
 const logger = require('../utils/logger');
 
 function signToken(user) {
@@ -35,27 +35,54 @@ async function register({ username, email, password }) {
     return { error: 'Пароль должен содержать минимум 6 символов', status: 400 };
   }
 
-  const existing = await userRepository.findByEmail(email);
+  const normalizedEmail = String(email).trim().toLowerCase();
+  const existing = await userRepository.findByEmail(normalizedEmail);
   if (existing) {
     return { error: 'Этот email уже зарегистрирован', status: 409 };
   }
+  const existingUsername = await userRepository.findByUsername(username);
+  if (existingUsername) {
+    return { error: 'Это имя пользователя уже занято', status: 409 };
+  }
 
   const passwordHash = await bcrypt.hash(password, 10);
-  const verificationToken = crypto.randomUUID();
+  const { token, tokenHash, expiresAt } = generateVerificationToken();
   const user = await userRepository.create({
     username,
-    email,
+    email: normalizedEmail,
     passwordHash,
-    verificationToken,
+    verificationToken: tokenHash,
+    verificationExpiresAt: expiresAt,
     isVerified: false,
   });
 
-  sendVerificationEmail(user.email, user.verificationToken);
+  const sent = await deliverEmail(sendVerificationEmail, user.email, token);
+  if (!sent.ok && process.env.NODE_ENV === 'production') {
+    // Не оставляем аккаунт, для которого пользователь никогда не получит ссылку.
+    await userRepository.remove(user.id);
+    logger.error('auth.register.mail_failed', { userId: user.id });
+    return { error: 'Не удалось отправить письмо подтверждения. Попробуйте позже.', status: 503 };
+  }
+  if (!sent.ok) {
+    logger.warn('auth.register.mail_failed', { userId: user.id, error: sent.error });
+  }
 
   return {
-    data: { message: 'Регистрация успешна. Проверьте почту, чтобы подтвердить email.' },
+    data: {
+      message: 'Регистрация успешна. Проверьте почту, чтобы подтвердить email.',
+      emailDelivered: sent.ok,
+    },
     status: 201,
   };
+}
+
+/** Отправка письма не должна ронять регистрацию: причина возвращается вызывающему. */
+async function deliverEmail(send, ...args) {
+  try {
+    return (await send(...args)) || { ok: false, error: 'Почтовый сервис не вернул результат' };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
 }
 
 async function verify(rawToken) {
@@ -63,16 +90,52 @@ async function verify(rawToken) {
     return { error: 'Не указан токен подтверждения', status: 400 };
   }
 
-  const user = await userRepository.findOne({ verificationToken: rawToken });
+  const user = await userRepository.findOne({ verificationToken: hashToken(rawToken) });
   if (!user) {
-    return { error: 'Ссылка подтверждения недействительна или устарела', status: 400 };
+    return { error: 'Ссылка подтверждения недействительна или уже использована', status: 400 };
+  }
+  if (isExpired(user.verificationExpiresAt)) {
+    return { error: 'Ссылка подтверждения устарела. Запросите новую на странице входа', status: 400 };
   }
 
-  await user.update({ verificationToken: null, isVerified: true });
+  const updates = {
+    isVerified: true,
+    verificationToken: null,
+    verificationExpiresAt: null,
+  };
+  await user.update(updates);
 
-  sendWelcomeEmail(user.email, user.username);
+  const sent = await deliverEmail(sendWelcomeEmail, user.email, user.username);
+  if (!sent.ok) logger.warn('auth.verify.welcome_mail_failed', { userId: user.id, error: sent.error });
 
-  return publicUser(user);
+  // sequelize обновляет инстанс на месте; явный merge делает контракт стабильным и для моков.
+  const plain = typeof user.toJSON === 'function' ? user.toJSON() : user;
+  return publicUser({ ...plain, ...updates });
+}
+
+/** Повторная отправка ссылки. Ответ намеренно одинаковый для любого email. */
+async function resendVerification(rawEmail) {
+  const email = typeof rawEmail === 'string' ? rawEmail.trim().toLowerCase() : '';
+  if (!email) {
+    return { error: 'Укажите email', status: 400 };
+  }
+
+  const message = 'Если аккаунт существует и email ещё не подтверждён, мы отправили новую ссылку.';
+  const user = await userRepository.findByEmail(email);
+  if (!user || user.isVerified) {
+    return { data: { message }, status: 200 };
+  }
+
+  const { token, tokenHash, expiresAt } = generateVerificationToken();
+  await user.update({ verificationToken: tokenHash, verificationExpiresAt: expiresAt });
+
+  const sent = await deliverEmail(sendVerificationEmail, user.email, token);
+  if (!sent.ok && process.env.NODE_ENV === 'production') {
+    return { error: 'Не удалось отправить письмо подтверждения. Попробуйте позже.', status: 503 };
+  }
+  if (!sent.ok) logger.warn('auth.resend.mail_failed', { userId: user.id, error: sent.error });
+
+  return { data: { message }, status: 200 };
 }
 
 async function login({ email, password }) {
@@ -118,4 +181,4 @@ async function getMe(userId) {
   });
 }
 
-module.exports = { register, verify, login, getMe, publicUser };
+module.exports = { register, verify, resendVerification, login, getMe, publicUser };

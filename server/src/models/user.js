@@ -52,6 +52,10 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.STRING(255),
       allowNull: true,
     },
+    verificationExpiresAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
   }, {
     sequelize,
     modelName: 'User',

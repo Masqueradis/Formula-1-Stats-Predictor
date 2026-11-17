@@ -60,6 +60,14 @@ const predictionWriteLimiter = createLimiter({
   message: 'Too many prediction requests, please slow down',
 });
 
+// Повторная отправка письма подтверждения: не дать сделать почтовый спам.
+const resendVerificationLimiter = createLimiter({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  prefix: 'verify-resend',
+  message: 'Слишком много запросов на отправку письма. Попробуйте позже',
+});
+
 // Админский синк: тяжёлая операция, запуск вручную.
 const adminSyncLimiter = createLimiter({
   windowMs: 60 * 1000,
@@ -68,4 +76,10 @@ const adminSyncLimiter = createLimiter({
   message: 'Sync is rate limited, please wait before retrying',
 });
 
-module.exports = { createLimiter, authLimiter, predictionWriteLimiter, adminSyncLimiter };
+module.exports = {
+  createLimiter,
+  authLimiter,
+  resendVerificationLimiter,
+  predictionWriteLimiter,
+  adminSyncLimiter,
+};

@@ -14,6 +14,16 @@ async function register(req, res) {
   }
 }
 
+async function resendVerification(req, res) {
+  try {
+    const result = await authService.resendVerification(req.body?.email);
+    if (result.error) return apiResponse.error(res, result.error, result.status || 400);
+    return apiResponse.success(res, result.data);
+  } catch (err) {
+    return apiResponse.error(res, 'Не удалось отправить письмо', 500, err.message);
+  }
+}
+
 async function login(req, res) {
   try {
     const result = await authService.login(req.body);
@@ -44,4 +54,4 @@ async function me(req, res) {
   }
 }
 
-module.exports = { register, login, verify, me };
+module.exports = { register, login, verify, resendVerification, me };

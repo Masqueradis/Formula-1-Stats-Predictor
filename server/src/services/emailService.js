@@ -11,16 +11,45 @@ function htmlEscape(value) {
 
 let transport;
 
+function isProduction() {
+  return process.env.NODE_ENV === 'production';
+}
+
+/** По умолчанию: MailHog в dev, Brevo SMTP в prod. */
+function smtpConfig() {
+  return {
+    host: process.env.SMTP_HOST || (isProduction() ? 'smtp.brevo.com' : 'localhost'),
+    port: Number(process.env.SMTP_PORT || (isProduction() ? 587 : 1025)),
+    secure: process.env.SMTP_SECURE === 'true',
+    requireTLS: process.env.SMTP_REQUIRE_TLS === 'true',
+    user: process.env.SMTP_USER || '',
+    pass: process.env.SMTP_PASS || '',
+  };
+}
+
+/**
+ * В проде без SMTP-учёток и подтверждённого отправителя письма не уйдут,
+ * поэтому регистрация не должна создавать «висячий» не подтверждённый аккаунт.
+ * В dev достаточно локального MailHog (авторизация не нужна).
+ */
+function isEmailConfigured() {
+  const config = smtpConfig();
+  if (!isProduction()) return true;
+  return Boolean(config.user && config.pass && process.env.MAIL_FROM);
+}
+
 function getTransport() {
   if (!transport) {
+    const config = smtpConfig();
     transport = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'localhost',
-      port: Number(process.env.SMTP_PORT || 1025),
-      secure: process.env.SMTP_SECURE === 'true',
-      auth: process.env.SMTP_USER
+      host: config.host,
+      port: config.port,
+      secure: config.secure,
+      requireTLS: config.requireTLS,
+      auth: config.user
         ? {
-            user: process.env.SMTP_USER,
-            pass: process.env.SMTP_PASS,
+            user: config.user,
+            pass: config.pass,
           }
         : undefined,
     });
@@ -33,6 +62,9 @@ function fromAddress() {
 }
 
 async function sendMail({ to, subject, html }) {
+  if (!isEmailConfigured()) {
+    return { ok: false, error: 'SMTP is not configured' };
+  }
   try {
     await getTransport().sendMail({
       from: fromAddress(),
@@ -42,6 +74,7 @@ async function sendMail({ to, subject, html }) {
     });
     return { ok: true };
   } catch (err) {
+    // В лог только причина без учётных данных.
     console.error(`[mail] failed to send "${subject}" to ${to}:`, err.message);
     return { ok: false, error: err.message };
   }
@@ -62,7 +95,7 @@ function layout(title, body) {
 }
 
 function verificationLink(token) {
-  const base = process.env.FRONTEND_URL || 'http://localhost:5173';
+  const base = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/+$/, '');
   return `${base}/verify?token=${encodeURIComponent(token)}`;
 }
 
@@ -126,4 +159,12 @@ function sendRaceReminderEmail(to, username, race, favoriteDrivers = []) {
   return sendMail({ to, subject: `Скоро Гран-при: ${race.name} — Simply Lovely`, html: layout('Не забудьте прогноз!', body) });
 }
 
-module.exports = { sendVerificationEmail, sendWelcomeEmail, sendRaceReminderEmail };
+module.exports = {
+  isEmailConfigured,
+  smtpConfig,
+  verificationLink,
+  sendMail,
+  sendVerificationEmail,
+  sendWelcomeEmail,
+  sendRaceReminderEmail,
+};

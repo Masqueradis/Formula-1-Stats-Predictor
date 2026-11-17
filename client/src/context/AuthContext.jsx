@@ -45,6 +45,11 @@ export function AuthProvider({ children }) {
     return data.data
   }, [])
 
+  const resendVerification = useCallback(async (email) => {
+    const { data } = await api.post('/auth/resend-verification', { email })
+    return data.data
+  }, [])
+
   const logout = useCallback(() => {
     setToken(null)
     setUser(null)
@@ -57,7 +62,7 @@ export function AuthProvider({ children }) {
   }, [])
 
   return (
-    <AuthContext.Provider value={{ user, isInitializing, login, register, logout, refreshMe }}>
+    <AuthContext.Provider value={{ user, isInitializing, login, register, resendVerification, logout, refreshMe }}>
       {children}
     </AuthContext.Provider>
   )

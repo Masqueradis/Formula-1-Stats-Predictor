@@ -9,12 +9,14 @@ import errorMessage from '../utils/errorMessages'
 
 export default function RegisterPage() {
   useDocumentTitle('Регистрация')
-  const { register } = useAuth()
+  const { register, resendVerification } = useAuth()
 
   const [form, setForm] = useState({ username: '', email: '', password: '' })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [registeredEmail, setRegisteredEmail] = useState('')
+  const [resendStatus, setResendStatus] = useState('')
+  const [resending, setResending] = useState(false)
 
   const handleChange = (e) => {
     setForm(f => ({ ...f, [e.target.name]: e.target.value }))
@@ -35,6 +37,20 @@ export default function RegisterPage() {
     }
   }
 
+  const handleResend = async () => {
+    setError('')
+    setResendStatus('')
+    setResending(true)
+    try {
+      const result = await resendVerification(registeredEmail)
+      setResendStatus(result?.message || 'Письмо отправлено повторно, если аккаунт ожидает подтверждения.')
+    } catch (err) {
+      setError(errorMessage(err, 'Не удалось отправить письмо повторно.'))
+    } finally {
+      setResending(false)
+    }
+  }
+
   if (registeredEmail) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center px-4">
@@ -45,17 +61,32 @@ export default function RegisterPage() {
           <h1 className="mb-2 text-xl font-bold text-foreground dark:text-foreground-dark">Проверьте почту</h1>
           <p className="mb-4 text-sm text-muted dark:text-muted-dark">
             Мы отправили письмо на <strong className="text-foreground dark:text-foreground-dark">{registeredEmail}</strong>.
-            Подтвердите email по ссылке из письма, чтобы войти в аккаунт.
+            Подтвердите email по ссылке из письма, чтобы войти в аккаунт. Ссылка действительна 24 часа.
           </p>
-          <p className="mb-4 text-xs text-muted dark:text-muted-dark">
-            В режиме разработки письма попадают в Mailhog:{' '}
-            <a href="http://localhost:8025" target="_blank" rel="noreferrer" className="font-semibold text-primary underline dark:text-accent">
-              localhost:8025
-            </a>
-          </p>
-          <Link to="/login">
-            <Button variant="outline">Перейти ко входу</Button>
-          </Link>
+          {import.meta.env.DEV && (
+            <p className="mb-4 text-xs text-muted dark:text-muted-dark">
+              В режиме разработки письма попадают в Mailhog:{' '}
+              <a href="http://localhost:8025" target="_blank" rel="noreferrer" className="font-semibold text-primary underline dark:text-accent">
+                localhost:8025
+              </a>
+            </p>
+          )}
+          {resendStatus && (
+            <p role="status" className="mb-3 rounded-md bg-emerald-500/10 px-3 py-2 text-sm text-emerald-600 dark:text-emerald-400">
+              {resendStatus}
+            </p>
+          )}
+          {error && (
+            <p role="alert" className="mb-3 rounded-md bg-red-500/10 px-3 py-2 text-sm font-medium text-red-500">{error}</p>
+          )}
+          <div className="flex flex-col items-center gap-3">
+            <Button variant="outline" onClick={handleResend} disabled={resending}>
+              {resending ? 'Отправляем…' : 'Отправить письмо ещё раз'}
+            </Button>
+            <Link to="/login">
+              <Button variant="ghost">Перейти ко входу</Button>
+            </Link>
+          </div>
         </Card>
       </div>
     )
