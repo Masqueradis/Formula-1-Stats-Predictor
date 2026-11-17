@@ -1,11 +1,5 @@
 'use strict';
 
-/**
- * Эпик-13 (BUG-04): создание гонки из админки.
- * Пустые date/координаты из формы не должны превращаться в '' для Postgres,
- * а сезон 2099 — валидный год.
- */
-
 jest.mock('../src/repositories/raceRepository');
 jest.mock('../src/services/predictionService');
 jest.mock('../src/realtime/io', () => ({

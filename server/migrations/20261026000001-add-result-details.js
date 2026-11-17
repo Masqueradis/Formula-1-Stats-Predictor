@@ -1,10 +1,5 @@
 'use strict';
 
-/**
- * Эпик-10: детали полной классификации из Jolpica.
- * Нужны для исторических Гран-при (2000–2025), где в таблице показываются
- * не только позиция/очки, но и время/статус схода и число кругов.
- */
 module.exports = {
   async up(queryInterface, Sequelize) {
     await queryInterface.addColumn('race_results', 'positionText', {

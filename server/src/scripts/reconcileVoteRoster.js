@@ -1,18 +1,5 @@
 'use strict';
 
-/**
- * Эпик-13 (BUG-08), вариант A «Последняя гонка» — CLI сверки `season_teams`.
- *
- * По умолчанию dry-run: печатает план и ничего не меняет.
- * Запись в БД — только с явным флагом:
- *
- *   npm run reconcile:vote-roster -- --season 2026
- *   npm run reconcile:vote-roster -- --season 2026 --apply
- *
- * Логика сверки вынесена в services/voteRosterService.js и переиспользуется
- * автоматически после syncSeason.
- */
-
 require('../config/env');
 
 const { sequelize, SeasonTeam } = require('../models');

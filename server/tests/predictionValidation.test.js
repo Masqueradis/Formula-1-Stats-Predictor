@@ -1,16 +1,7 @@
 'use strict';
 
-/**
- * Юнит-тесты валидации прогнозов (predictionService) — чистые функции:
- * - normalizePicks: нормализация тела запроса { kind, picks } (эпик-06/09);
- * - validatePicks: сверка с составом документа гонки ('full' — перестановка 1..N,
- *   'top3' — ровно 3 пилота с местами 1-2-3, эпик-09 US-5);
- * - isVotingOpen: окно голосования (гонка scheduled и ещё не началась).
- */
-
 const { normalizePicks, validatePicks, isVotingOpen } = require('../src/services/predictionService');
 
-/** Документ гонки с 3 пилотами (минимальный срез, нужный validatePicks) */
 const DOC = { entries: [{ driverId: 10 }, { driverId: 20 }, { driverId: 30 }] };
 
 describe('normalizePicks', () => {

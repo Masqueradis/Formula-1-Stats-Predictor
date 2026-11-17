@@ -1,13 +1,7 @@
 'use strict';
 
-/**
- * Юнит-тесты `apiResponse` — единый формат ответов REST API (лаба 4).
- * Проверяем статус-коды и тело `{ success, data | error, pagination }`.
- */
-
 const apiResponse = require('../src/utils/apiResponse');
 
-/** Минималистичный мок express-`res` */
 function mockRes() {
   const res = {
     statusCode: null,

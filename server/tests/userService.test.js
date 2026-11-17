@@ -1,10 +1,5 @@
 'use strict';
 
-/**
- * userService — unit-тесты сериализации пользователей.
- * Публичные ответы не должны содержать passwordHash и verificationToken.
- */
-
 jest.mock('../src/repositories/userRepository');
 
 const userRepository = require('../src/repositories/userRepository');

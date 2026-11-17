@@ -6,7 +6,6 @@ const requireMongo = require('../middleware/requireMongo');
 const { authenticate } = require('../middleware/authenticate');
 const { isAdmin } = require('../middleware/authorize');
 
-// Деградированный режим: без MongoDB весь /api/predictions отдаёт 503
 router.use(requireMongo);
 
 router.get('/', ctrl.getAll);

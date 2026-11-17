@@ -138,11 +138,6 @@ function extractImage(item) {
   return null;
 }
 
-/**
- * Дата из RSS: JS не понимает аббревиатуры зон (BST, CEST у Sky Sports/Autosport),
- * из-за чего new Date() → Invalid Date и toISOString() ронял весь источник.
- * Пробуем напрямую, затем подставляем смещение по таблице, иначе null.
- */
 const TZ_OFFSETS = {
   BST: '+0100',
   CET: '+0100',
@@ -284,7 +279,6 @@ async function loadPool() {
   if (fresh.length) {
     await cacheService.set(cacheKey, { items: fresh, fetchedAt: now }, CACHE_TTL_MS);
     writeDiskCache(fresh, now);
-    // Архив в Postgres (эпик-09, P4): сбой записи не должен ломать ленту
     await newsItemRepository.upsertMany(fresh)
       .catch((err) => logger.warn('news.archive_failed', { reason: err.message }));
     return { items: fresh, fetchedAt: now, cached: false };
@@ -423,10 +417,6 @@ async function getNews(options = {}) {
   };
 }
 
-/**
- * Поиск по архиву новостей в Postgres (эпик-09, P4):
- * полнотекстовый (tsvector) + подстрочный (ILIKE), фильтр по датам.
- */
 async function searchArchive(options = {}) {
   const result = await newsItemRepository.search(options);
   const start = (result.page - 1) * result.limit;

@@ -29,7 +29,6 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false,
       references: { model: 'drivers', key: 'id' },
     },
-    // Резервист/замена сезона: не входит в состав гонок для голосования (эпик-06)
     isReserve: {
       type: DataTypes.BOOLEAN,
       allowNull: false,

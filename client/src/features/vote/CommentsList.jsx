@@ -15,17 +15,16 @@ export default function CommentsList({ doc, user, onChanged, showHeader = true }
   const [busy, setBusy] = useState(false)
   const [likingId, setLikingId] = useState(null)
   const [pendingDelete, setPendingDelete] = useState(null)
-  const [typingUsers, setTypingUsers] = useState([]) // [{ username, at }]
+  const [typingUsers, setTypingUsers] = useState([])
   const lastTypingRef = useRef(0)
 
   const comments = [...(doc.comments || [])].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
 
-  // Индикатор «печатает…»: приём с автоочисткой и троттлинг своей отправки
   useEffect(() => {
     if (!connected) return undefined
     return subscribe('comment:typing', (payload) => {
       if (String(payload?.raceId) !== String(doc.raceId)) return
-      if (user && Number(payload.userId) === Number(user.id)) return // свой ввод не показываем
+      if (user && Number(payload.userId) === Number(user.id)) return
       const name = payload.username || 'Кто-то'
       setTypingUsers((prev) => {
         const others = prev.filter((t) => t.username !== name)
@@ -34,7 +33,6 @@ export default function CommentsList({ doc, user, onChanged, showHeader = true }
     })
   }, [subscribe, connected, doc.raceId, user])
 
-  // Автоочистка индикатора через 3 c без новых событий
   useEffect(() => {
     if (typingUsers.length === 0) return undefined
     const timer = window.setInterval(() => {
@@ -47,7 +45,7 @@ export default function CommentsList({ doc, user, onChanged, showHeader = true }
   const emitTyping = (value) => {
     if (!connected || !value) return
     const now = Date.now()
-    if (now - lastTypingRef.current < 1500) return // троттлинг ≤1 события в 1.5 c
+    if (now - lastTypingRef.current < 1500) return
     lastTypingRef.current = now
     getSocket().emit('comment:typing', { raceId: String(doc.raceId) })
   }
@@ -68,7 +66,7 @@ export default function CommentsList({ doc, user, onChanged, showHeader = true }
   }
 
   const toggleLike = async (commentId) => {
-    if (!user || likingId) return // защита от двойного клика/параллельных запросов
+    if (!user || likingId) return
     setLikingId(commentId)
     try {
       const { data } = await api.put(`/predictions/race/${doc.raceId}/comments/${commentId}/like`)

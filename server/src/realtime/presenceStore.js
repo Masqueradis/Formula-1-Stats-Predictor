@@ -1,14 +1,5 @@
 'use strict';
 
-/**
- * Presence для Socket.IO (эпик-11).
- *
- * Redis hash `f1:presence:clients`: field = socketId, value = JSON
- * `{ userId, username, role, raceId, updatedAt }`. Это позволяет считать
- * presence при нескольких backend-инстансах. Если Redis выключен/недоступен,
- * используется локальный Map — single-instance режим.
- */
-
 const redisClient = require('../cache/redisClient');
 const cacheKeys = require('../cache/keys');
 const logger = require('../utils/logger');
@@ -16,10 +7,7 @@ const logger = require('../utils/logger');
 const STALE_MS = 60 * 1000;
 const KEY = cacheKeys.presence();
 
-// socketId -> entry (L1/fallback)
 const local = new Map();
-// socketId -> Promise: операции одного сокета выполняются строго по очереди,
-// иначе поздний update() может перезаписать уже удалённую запись (фантомы).
 const pending = new Map();
 let fallbackLogged = false;
 
@@ -68,7 +56,6 @@ async function register(socketId, data = {}) {
 
 async function update(socketId, patch = {}) {
   return enqueue(socketId, async () => {
-    // Сокет уже отключён — запоздавший heartbeat/update не должен воскрешать запись.
     if (!local.has(socketId)) return;
 
     const current = local.get(socketId) || {};
@@ -159,7 +146,6 @@ async function summary(raceId = null) {
   };
 }
 
-/** Удалить устаревшие записи (упавший инстанс, потерянный disconnect). */
 async function cleanup() {
   const now = Date.now();
 

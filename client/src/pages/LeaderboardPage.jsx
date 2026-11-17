@@ -31,12 +31,6 @@ function SortHeader({ label, sortKey, sort, onSort, align = 'right', className =
   )
 }
 
-/**
- * US-6 — рейтинг предсказателей (leaderboard).
- *
- * Баллы считает cron (UC-2): 3 — точное место, 1 — пилот в ТОП-3 при неверном месте.
- * Live: событие 'leaderboard:update' (эпик-09) → тихий refetch.
- */
 export default function LeaderboardPage() {
   useDocumentTitle('Рейтинг предсказателей')
   const { subscribe } = useSocket()
@@ -63,7 +57,6 @@ export default function LeaderboardPage() {
     load()
   }, [load])
 
-  // Live-обновление: cron пересчитал баллы → Socket.IO → тихий refetch (без спиннера)
   useEffect(() => {
     return subscribe('leaderboard:update', () => {
       load()
@@ -79,7 +72,6 @@ export default function LeaderboardPage() {
     return [...list].sort((a, b) => {
       const diff = (Number(a[sort.key]) || 0) - (Number(b[sort.key]) || 0)
       if (diff !== 0) return diff * direction
-      // При равенстве сохраняем порядок рейтинга по баллам
       return (Number(a.rank) || 0) - (Number(b.rank) || 0)
     })
   }, [data, sort])

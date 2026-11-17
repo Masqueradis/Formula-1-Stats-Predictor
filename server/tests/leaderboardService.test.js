@@ -1,10 +1,5 @@
 'use strict';
 
-/**
- * leaderboardService — пересчёт баллов (UC-2) и чтение рейтинга (US-6)
- * на моках репозиториев PostgreSQL/MongoDB.
- */
-
 jest.mock('../src/repositories/raceRepository');
 jest.mock('../src/repositories/raceResultRepository');
 jest.mock('../src/repositories/userRepository');
@@ -86,8 +81,6 @@ describe('recalculate', () => {
 
     const result = await leaderboardService.recalculate();
 
-    // user1: точное место +3, 2-й предсказан 3-м при факте 2 → +1 = 4
-    // user2: 3-й предсказан 2-м при факте 3 → +1, уже записан → не обновляется
     expect(result).toEqual({ races: 1, votes: 1 });
     expect(predictionRepository.applyVoteScores).toHaveBeenCalledWith('2026-2', [
       { userId: 1, kind: 'full', score: 4, exactHits: 1, podiumHits: 1 },
@@ -130,7 +123,6 @@ describe('getLeaderboard', () => {
     userRepository.findAll.mockResolvedValue([
       { id: 1, username: 'maxfan' },
       { id: 2, username: 'admin' },
-      // пользователь 3 удалён из PostgreSQL
     ]);
 
     const result = await leaderboardService.getLeaderboard(10);

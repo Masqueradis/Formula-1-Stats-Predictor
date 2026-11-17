@@ -55,5 +55,4 @@ jobs:
       - name: Build
         run: npm run build
         env:
-          # Плейсхолдер для CI-сборки; реальный URL задаётся в Netlify env
           VITE_API_URL: https://example.onrender.com/api

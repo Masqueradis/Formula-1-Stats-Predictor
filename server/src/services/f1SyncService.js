@@ -47,11 +47,6 @@ function optionalNumber(value) {
   return Number.isFinite(n) ? n : null;
 }
 
-/**
- * Эпик-10: у старых сезонов (2000–2014) Jolpica не отдаёт `code`/`permanentNumber`.
- * Аббревиатура строится из первых трёх букв фамилии, коллизии получают числовой
- * суффикс (столбец — STRING(3)), поэтому аббревиатура остаётся трёхсимвольной.
- */
 function baseAbbreviation(raw) {
   const source = String(raw.code || raw.familyName || raw.lastName || 'DRV');
   const cleaned = source.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 3);
@@ -68,7 +63,6 @@ async function uniqueAbbreviation(base) {
   throw new Error(`cannot generate unique abbreviation for ${base}`);
 }
 
-/** Опциональные эндпоинты (sprint/drivers/standings) у старых сезонов могут 404 — не валим синк. */
 async function safeGet(path) {
   try {
     return await jolpica.getJson(path);
@@ -77,11 +71,6 @@ async function safeGet(path) {
   }
 }
 
-/**
- * Пересчёт флага isActive по последнему сезону, который есть в season_teams:
- * активны только участники последнего сезона, остальные (исторические) — архив.
- * Ручные записи без строк в season_teams не трогаются.
- */
 async function refreshActiveFlags() {
   const latestSeason = await SeasonTeam.max('season');
   if (!latestSeason) return { season: null, drivers: 0, teams: 0 };
@@ -123,7 +112,6 @@ async function refreshActiveFlags() {
 async function syncSeason(rawSeason, options = {}) {
   const season = Number(rawSeason) || Number(options.season) || new Date().getFullYear();
   const summary = { season, teams: 0, drivers: 0, races: 0, results: 0, seasonTeams: 0, errors: [] };
-  // Гонки, у которых статус реально изменился (scheduled ↔ finished) — для live-push
   const statusChanges = [];
 
   const schedulePayload = await jolpica.getJson(`/${season}/?limit=100`);
@@ -195,11 +183,8 @@ async function syncSeason(rawSeason, options = {}) {
 
     let driver = await Driver.findOne({ where: { externalId } });
     if (driver) {
-      // podiums не трогаем: это агрегат, который пересчитывается отдельно
       await driver.update(values);
     } else {
-      // Старые сезоны без `code`: пробуем привязаться к ручной/сидовой записи
-      // по аббревиатуре, но только если у неё ещё нет externalId.
       const code = raw.code ? baseAbbreviation(raw) : null;
       if (code) {
         const byCode = await Driver.findOne({ where: { abbreviation: code } });
@@ -222,7 +207,6 @@ async function syncSeason(rawSeason, options = {}) {
     await ensureTeam(constructor);
   }
 
-  // Эпик-10: исторические пилоты часто без permanentNumber/code — их тоже заводим
   for (const driver of drivers) {
     await ensureDriver(driver);
   }
@@ -309,8 +293,6 @@ async function syncSeason(rawSeason, options = {}) {
           grid: item.grid != null ? Number(item.grid) : null,
           fastestLap: sessionType === 'race' && String(item.FastestLap?.rank) === '1',
           sessionType,
-          // Эпик-10: полная классификация — позиция текстом (R, D, W, NC…),
-          // статус (Finished, +1 Lap, Accident…), время и число кругов.
           positionText: item.positionText != null ? String(item.positionText) : null,
           status: item.status || null,
           time: item.Time?.time || null,
@@ -319,12 +301,9 @@ async function syncSeason(rawSeason, options = {}) {
       }
     };
 
-    // Полная классификация: раньше брали только топ-10/очковых, теперь — все строки
     await collect(raceResults, 'race');
     await collect(sprintResults, 'sprint');
 
-    // Атомарная замена результатов гонки: destroy + bulkCreate в одной транзакции,
-    // чтобы сбой между операциями не оставил гонку без результатов.
     if (sequelize && typeof sequelize.transaction === 'function') {
       await sequelize.transaction(async (t) => {
         await RaceResult.destroy({ where: { raceId: raceRecord.id }, transaction: t });
@@ -344,7 +323,6 @@ async function syncSeason(rawSeason, options = {}) {
     if (raceRecord.status !== status) {
       const previous = raceRecord.status;
       await raceRecord.update({ status });
-      // Live-push о смене статуса гонки (лаба 7): только при реальном изменении
       statusChanges.push({ raceId: raceRecord.id, externalId: raceRecord.externalId, name: raceRecord.name, previous, status });
     }
   }
@@ -367,8 +345,6 @@ async function syncSeason(rawSeason, options = {}) {
     summary.seasonTeams += 1;
   }
 
-  // Подиумы — агрегат текущего сезона (в исторических сезонах не перезаписываем,
-  // иначе синк 2000-2025 обнулит актуальные значения).
   if (season === new Date().getFullYear()) {
     for (const [driverId, podiums] of podiumByDriver.entries()) {
       await Driver.update({ podiums }, { where: { id: driverId } });
@@ -379,9 +355,6 @@ async function syncSeason(rawSeason, options = {}) {
     summary.active = await refreshActiveFlags();
   }
 
-  // BUG-08: синк добавляет строки season_teams для замен пилотов — сразу
-  // помечаем не участвовавших в последней гонке как резервистов.
-  // Массовый импорт истории отключает сверку явно (reconcileRoster: false).
   if (options.reconcileRoster !== false) {
     try {
       const roster = await reconcileVoteRoster(season, { apply: true });
@@ -391,13 +364,11 @@ async function syncSeason(rawSeason, options = {}) {
         lastRace: roster.lastRace ? roster.lastRace.round : null,
       };
     } catch (err) {
-      // Синк должен остаться успешным даже если сверка не прошла.
       summary.errors.push(`voteRoster: ${err.message}`);
     }
   }
 
   summary.statusChanges = statusChanges;
-  // После синка публичные GET-ответы устарели — сбрасываем HTTP-кэш.
   await invalidateApiCache();
   return summary;
 }

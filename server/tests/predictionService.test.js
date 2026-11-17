@@ -1,11 +1,5 @@
 'use strict';
 
-/**
- * predictionService — unit-тесты на моках репозиториев и realtime.
- * Покрывают ленивое создание/обновление документа, чтение, голоса,
- * комментарии/лайки и удаление документа гонки.
- */
-
 const { Types } = require('mongoose');
 
 jest.mock('../src/repositories/raceRepository');
@@ -133,7 +127,6 @@ beforeEach(() => {
   jest.clearAllMocks();
   raceRepository.findOne.mockResolvedValue(RACE);
   raceRepository.findById.mockResolvedValue(RACE);
-  // По умолчанию завершённых гонок с результатами нет → fallback на season_teams
   raceResultRepository.findAllWithOptions.mockResolvedValue([]);
   seasonTeamRepository.findAll.mockResolvedValue(SEASON_TEAMS);
   predictionRepository.setFields.mockImplementation(async (raceId, fields) =>
@@ -234,14 +227,12 @@ describe('состав голосования (BUG-08, вариант A «Пос
         driver: { id: 99, firstName: 'Sprint', lastName: 'Only', abbreviation: 'SPR' },
         team: { name: 'Sprint Team', color: '#000000' },
       },
-      // Замена по ходу сезона: другой пилот той же команды
       {
         sessionType: 'race',
         position: 2,
         driver: { id: 31, firstName: 'Isack', lastName: 'Hadjar', abbreviation: 'HAD', number: 6 },
         team: { name: 'Red Bull', color: '#3671c6' },
       },
-      // Дубль в результатах не должен попасть в состав дважды
       {
         sessionType: 'race',
         position: 3,
@@ -257,7 +248,6 @@ describe('состав голосования (BUG-08, вариант A «Пос
     expect(raceResultRepository.findAllWithOptions).toHaveBeenCalledWith({ raceId: 20 });
     expect(data.entries.map((e) => e.driverId)).toEqual([30, 31]);
     expect(data.entries[0]).toMatchObject({ lastName: 'Norris', teamName: 'McLaren' });
-    // season_teams не должен использоваться, когда есть завершённая гонка
     expect(seasonTeamRepository.findAll).not.toHaveBeenCalled();
   });
 

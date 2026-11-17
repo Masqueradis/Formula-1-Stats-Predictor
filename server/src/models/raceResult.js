@@ -53,7 +53,6 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false,
       defaultValue: 'race',
     },
-    // Эпик-10: детали исторической классификации (Jolpica отдаёт их не всегда)
     positionText: {
       type: DataTypes.STRING(10),
       allowNull: true,

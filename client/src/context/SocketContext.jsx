@@ -3,13 +3,6 @@ import { getSocket, refreshSocketAuth } from '../socket'
 import { useAuth } from './useAuth'
 import { SocketContext } from './useSocket'
 
-/**
- * SocketContext (лаба 7): единая точка доступа к realtime.
- *
- * Соединение живёт в синглтоне (`src/socket.js`), поэтому StrictMode/HMR не создают дублей.
- * Сам контекст и хук `useSocket` — в `useSocket.js`.
- */
-
 const STATUS_LABELS = {
   connected: 'подключено',
   connecting: 'подключение…',
@@ -21,17 +14,13 @@ export function SocketProvider({ children }) {
   const { isInitializing, user } = useAuth()
   const [status, setStatus] = useState('connecting')
   const [presence, setPresence] = useState({ connections: 0, users: [], usersCount: 0, guests: 0 })
-  // Отложенный коннект: ждём bootstrap AuthContext, чтобы handshake ушёл уже с токеном.
-  // isInitializing меняется один раз (false), поэтому ready выводится напрямую — без state и эффекта
   const ready = !isInitializing
   const prevUserRef = useRef(undefined)
 
-  // Пересоздание handshake при смене пользователя (login/logout/401-refresh)
   useEffect(() => {
     if (!ready) return
     const prev = prevUserRef.current
     prevUserRef.current = user
-    // Первый запуск после bootstrap — соединение создаётся ниже, ничего не пересоздаём
     if (prev === undefined) return
     const prevId = prev?.id ?? null
     const nextId = user?.id ?? null
@@ -53,7 +42,6 @@ export function SocketProvider({ children }) {
     socket.io.on('reconnect_attempt', onReconnecting)
     socket.on('presence:update', onPresence)
 
-    // Если сокет уже подключён (строгий режим/HMR) — синхронизируем статус
     if (socket.connected) setStatus('connected')
     else setStatus('connecting')
 
@@ -74,7 +62,6 @@ export function SocketProvider({ children }) {
     [],
   )
 
-  /** Вход в комнату гонки (лаба 7). Возвращает функцию выхода. */
   const joinRace = useCallback((raceId) => {
     if (raceId == null) return () => {}
     const socket = getSocket()

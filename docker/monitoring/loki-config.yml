@@ -1,4 +1,3 @@
-# Loki (single-binary) — хранение логов, стек эпик-09 Phase 6b.
 auth_enabled: false
 
 server:

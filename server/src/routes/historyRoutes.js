@@ -2,7 +2,6 @@ const router = require('express').Router();
 const ctrl = require('../controllers/historyController');
 const cacheResponse = require('../middleware/cacheResponse');
 
-// История меняется только после синка/CRUD — 10 минут кэша с инвалидацией.
 const cache = cacheResponse(10 * 60 * 1000);
 
 router.get('/seasons', cache, ctrl.getSeasons);

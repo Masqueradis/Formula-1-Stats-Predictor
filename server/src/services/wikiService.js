@@ -5,19 +5,6 @@ const cacheService = require('../cache/cacheService');
 const cacheKeys = require('../cache/keys');
 const logger = require('../utils/logger');
 
-/**
- * Биографии и фото пилотов из Wikipedia REST API (эпик-09, P2).
- *
- * Стратегия:
- *  1) ru-Wikipedia: поиск `${firstName} ${lastName}` → summary первой статьи
- *     (заголовок, extract, миниатюра). Английское имя находит русскую статью
- *     через редиректы поиска (проверено: "Max Verstappen" → "Ферстаппен, Макс").
- *  2) en-Wikipedia: прямой summary `First_Last` (фото у русских статей часто
- *     отсутствует) — берём en-миниатюру, если в ru нет; extract — запасной.
- *  3) Кэш по driverId на 24 ч: статьи меняются редко, а нагрузка на Wikipedia
- *     (донор бесплатный, но с rate limit) минимальна.
- */
-
 const SUMMARY_TIMEOUT_MS = 8000;
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const MAX_EXTRACT_LENGTH = 1200;
@@ -55,7 +42,6 @@ async function searchFirstPage(lang, query) {
   return body?.pages?.[0] ?? null;
 }
 
-/** ru-статья: название статьи находим поиском, затем summary */
 async function fetchRuSummary(fullName) {
   const page = await searchFirstPage('ru', fullName);
   if (!page?.key) return null;
@@ -70,7 +56,6 @@ async function fetchRuSummary(fullName) {
   };
 }
 
-/** en-статья: пробуем прямой заголовок `First Last`, иначе поиск */
 async function fetchEnSummary(fullName) {
   let summary = await fetchJson(summaryUrl('en', fullName));
   if (!summary?.extract) {
@@ -105,8 +90,6 @@ async function getDriverWiki(rawId) {
   let ru = null;
   let en = null;
   try {
-    // ru даёт русский текст; en — фото и запасной текст. Идём последовательно:
-    // en нужен только если ru не справился (минимум запросов к донору)
     ru = await fetchRuSummary(fullName);
     if (!ru?.thumbnail) {
       en = await fetchEnSummary(fullName);

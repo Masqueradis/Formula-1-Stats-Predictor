@@ -66,7 +66,6 @@ const RESULT_INCLUDES = [
   { association: 'team' },
 ];
 
-/** Список сезонов с числом гонок и границами дат — для селекторов история/зачёты. */
 async function getSeasons() {
   const rows = await Race.findAll({
     attributes: [
@@ -88,7 +87,6 @@ async function getSeasons() {
   }));
 }
 
-/** Карточки гонок сезона: победитель + подиум (полная классификация — в деталке). */
 async function getRaces(rawSeason) {
   const season = parseSeason(rawSeason);
   const races = await Race.findAll({
@@ -124,7 +122,6 @@ async function getRaces(rawSeason) {
   };
 }
 
-/** Полная классификация гонки + спринт (если был). */
 async function getRace(rawId) {
   const id = parseId(rawId);
   const race = await Race.findByPk(id, {

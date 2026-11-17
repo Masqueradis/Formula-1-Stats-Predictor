@@ -10,7 +10,6 @@ const season = Number(process.argv[2]) || new Date().getFullYear();
 
 (async () => {
   try {
-    // Ручной синк — принудительно свежие данные, без ответов предыдущего прогона.
     await jolpicaClient.clearCache();
     const summary = await syncSeason(season);
     console.log('[sync:f1] completed:', JSON.stringify(summary));

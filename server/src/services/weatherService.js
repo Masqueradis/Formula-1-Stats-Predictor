@@ -5,18 +5,11 @@ const cacheService = require('../cache/cacheService');
 const cacheKeys = require('../cache/keys');
 const logger = require('../utils/logger');
 
-/**
- * Погода на уик-энд Гран-при (эпик-09, P2): проксируем Open-Meteo
- * (бесплатный, без API-ключа) по координатам трассы из races.
- */
-
 const OPEN_METEO_URL = 'https://api.open-meteo.com/v1/forecast';
 const FETCH_TIMEOUT_MS = 8000;
-// Open-Meteo отдаёт прогноз максимум на 16 дней вперёд
 const FORECAST_HORIZON_DAYS = 16;
 const CACHE_TTL_MS = 30 * 60 * 1000;
 
-// WMO weather interpretation codes → человекочитаемое описание
 const WEATHER_CODES = {
   0: 'Ясно',
   1: 'Малооблачно',
@@ -48,7 +41,6 @@ const WEATHER_CODES = {
   99: 'Сильная гроза с градом',
 };
 
-// Ключ → { date } — погода «на дату гонки», обновляется не чаще раза в 30 мин
 
 function httpError(status, message) {
   const err = new Error(message);
@@ -85,7 +77,6 @@ async function fetchForecast(latitude, longitude, date) {
     if (!res.ok) throw new Error(`Open-Meteo HTTP ${res.status}`);
     const body = await res.json();
     const daily = body.daily || {};
-    // API вернул диапазон без искомой даты (редкий случай — отдаём null'ы)
     const index = (daily.time || []).indexOf(date);
     if (index === -1) return null;
     return {
@@ -126,7 +117,6 @@ async function getRaceWeather(rawRaceId) {
   try {
     forecast = await fetchForecast(race.trackLatitude, race.trackLongitude, race.date);
   } catch (err) {
-    // Сеть/апстрим лёг — отдаём 502, фронт покажет «погода недоступна»
     logger.warn('weather.fetch_failed', { raceId: id, reason: err.message });
     throw httpError(502, 'Weather service is unavailable');
   }

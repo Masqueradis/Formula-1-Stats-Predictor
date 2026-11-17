@@ -1,25 +1,7 @@
 'use strict';
 
-/**
- * Интеграционные тесты REST API через Supertest против запущенного backend
- * (http://localhost:3000, стек поднят: `docker compose up -d` или `make dev`).
- *
- * Прогоняются только при INTEGRATION=1 — на стенде без БД пропускаются:
- *   INTEGRATION=1 npm run test:integration
- *
- * Порядок: health → публичные GET → auth register/login → свойства API.
- * Побочные эффекты минимальны: регистрация тестового юзера помечается
- * isVerified=false, письма уходят в MailHog (не в реальную почту).
- */
-
 const request = require('supertest');
 
-/**
- * Допускаем оба варианта из документации:
- *   TEST_API_URL=http://localhost:3000
- *   TEST_API_URL=http://localhost/api   (prod-стек через nginx)
- * Пути в тестах всегда начинаются с /api, поэтому хвостовой /api убираем.
- */
 function normalizeBaseUrl(raw) {
   const trimmed = String(raw || '').trim().replace(/\/+$/, '');
   return trimmed.endsWith('/api') ? trimmed.slice(0, -4) : trimmed;
@@ -46,7 +28,6 @@ maybe('API (integration)', () => {
     return res.status === 200 ? res.body.data.token : null;
   }
 
-  // Интеграционные прогоны не должны оставлять мусор в users.
   afterAll(async () => {
     try {
       const adminToken = await loginAsAdmin();
@@ -64,7 +45,6 @@ maybe('API (integration)', () => {
           .set('Authorization', `Bearer ${adminToken}`);
       }
     } catch (err) {
-      // cleanup не должен маскировать результаты тестов
       console.warn(`[integration] user cleanup skipped: ${err.message}`);
     }
   });
@@ -198,7 +178,6 @@ maybe('API (integration)', () => {
   });
 
   test('PUT защищённого эндпоинта с битым токеном → 401/403, не 500', async () => {
-    // PUT /votes/:userId — authenticate, до body-валидации: токен должен отклониться
     const res = await request(BASE)
       .put('/api/predictions/race/2026-18/votes/1')
       .set('Authorization', 'Bearer invalid-token')

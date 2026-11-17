@@ -1,10 +1,5 @@
 'use strict';
 
-/**
- * Архив новостей (эпик-09, P4): постоянное хранение RSS-пула в Postgres +
- * полнотекстовый поиск. searchVector — генерируемая колонка (simple-конфиг,
- * без стемминга: лента смешанная ru/en), GIN-индекс для @@-запросов.
- */
 module.exports = {
   async up(queryInterface, Sequelize) {
     await queryInterface.createTable('news_items', {

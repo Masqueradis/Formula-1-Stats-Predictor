@@ -5,10 +5,7 @@
 [build.environment]
   NODE_VERSION = "22"
 
-# VITE_API_URL задаётся в панели Netlify (Site settings → Environment variables)
-# Пример: VITE_API_URL = "https://<backend>.onrender.com/api"
 
-# SPA: любой маршрут отдаёт index.html, роутинг обрабатывает React Router
 [[redirects]]
   from = "/*"
   to = "/index.html"

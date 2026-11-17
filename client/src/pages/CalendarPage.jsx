@@ -12,7 +12,6 @@ const STATUS = {
   cancelled: { label: 'Отменена', className: 'bg-red-500/15 text-red-500' },
 }
 
-// Open-Meteo отдаёт прогноз максимум на 16 дней вперёд — то же окно, что и на бэкенде.
 const WEATHER_HORIZON_DAYS = 16
 
 function formatDate(value) {
@@ -22,7 +21,6 @@ function formatDate(value) {
   return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
 }
 
-/** Сколько дней осталось до гонки (UTC-дни, как в weatherService). null — дата неизвестна. */
 function daysUntil(dateValue) {
   if (!dateValue) return null
   const raceDay = new Date(`${String(dateValue).slice(0, 10)}T00:00:00Z`).getTime()
@@ -32,13 +30,8 @@ function daysUntil(dateValue) {
   return Math.round((raceDay - today.getTime()) / 86400000)
 }
 
-/**
- * Погода на уик-энд ГП (эпик-09, P2): ленивая загрузка по клику.
- * Бэкенд ходит в Open-Meteo и кэширует ответ на 30 минут; при его 429/502
- * (лимит на IP Render) запрос уходит напрямую из браузера.
- */
 function WeatherWidget({ race }) {
-  const [state, setState] = useState('idle') // idle | loading | ready | error
+  const [state, setState] = useState('idle')
   const [weather, setWeather] = useState(null)
   const [error, setError] = useState('')
 
@@ -62,8 +55,6 @@ function WeatherWidget({ race }) {
         setState('error')
         return
       }
-      // 429/502 от бэкенда — лимит Open-Meteo на его IP. Ходим напрямую
-      // из браузера: CORS разрешён, лимит считается по IP пользователя.
       if (!FALLBACK_STATUSES.includes(status) && status !== undefined) {
         setError('Погода недоступна')
         setState('error')
@@ -210,8 +201,6 @@ export default function CalendarPage() {
                   <p className="mt-0.5 truncate text-sm text-muted dark:text-muted-dark">
                     {[race.circuit, race.country].filter(Boolean).join(' · ')}
                   </p>
-                  {/* Погода/пояснение вынесены в правую колонку, чтобы высота карточки
-                      запланированной гонки не отличалась от завершённой */}
                 </div>
 
                 <div className="col-span-2 flex items-center justify-between gap-3 sm:col-span-1 sm:flex-col sm:items-end sm:justify-start sm:gap-1 sm:pt-1">

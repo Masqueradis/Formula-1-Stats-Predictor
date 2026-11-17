@@ -91,7 +91,6 @@ export default function CabinetPage() {
         )}
       </Card>
 
-      {/* US-5: API и данные kind='top3' сохранены, но блок в кабинете убран (BUG-10) */}
       <Card className="p-6">
         <h2 className="mb-3 text-lg font-bold text-foreground dark:text-foreground-dark">Прогнозы</h2>
         <p className="text-sm text-muted dark:text-muted-dark">

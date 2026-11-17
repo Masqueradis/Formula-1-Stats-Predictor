@@ -27,7 +27,7 @@ function formatDate(value) {
 export default function PredictionsPage() {
   useDocumentTitle('Прогнозы')
   const [data, setData] = useState(null)
-  const [error, setError] = useState('') // '' | 'no-race' | текст ошибки
+  const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
 
   const load = useCallback(async () => {

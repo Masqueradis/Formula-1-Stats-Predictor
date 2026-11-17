@@ -7,7 +7,7 @@ import { useToast } from '../../components/ui/useToast'
 
 export default function VotersSummary({ doc, user, stats, onChanged }) {
   const toast = useToast()
-  const [pendingDelete, setPendingDelete] = useState(null) // userId чужого/своего голоса
+  const [pendingDelete, setPendingDelete] = useState(null)
   const [busy, setBusy] = useState(false)
 
   const votes = [...(doc.votes || [])].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
@@ -31,7 +31,6 @@ export default function VotersSummary({ doc, user, stats, onChanged }) {
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
-      {/* Народный рейтинг (aggregation) */}
       <Card className="p-6">
         <h2 className="mb-1 text-lg font-bold text-foreground dark:text-foreground-dark">Народный рейтинг</h2>
         <p className="mb-3 text-sm text-muted dark:text-muted-dark">
@@ -73,7 +72,6 @@ export default function VotersSummary({ doc, user, stats, onChanged }) {
         </div>
       </Card>
 
-      {/* Кто голосовал */}
       <Card className="p-6">
         <h2 className="mb-3 text-lg font-bold text-foreground dark:text-foreground-dark">
           Проголосовали <span className="text-sm font-normal text-muted dark:text-muted-dark">({votes.length})</span>

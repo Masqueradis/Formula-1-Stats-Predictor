@@ -4,15 +4,6 @@ const rateLimit = require('express-rate-limit');
 const { RedisStore } = require('rate-limit-redis');
 const redisClient = require('../cache/redisClient');
 
-/**
- * Ограничитель запросов для чувствительных эндпоинтов.
- * В тестах (NODE_ENV=test) лимит отключён, чтобы интеграционные тесты
- * не упирались в лимит и не зависели от порядка запуска.
- *
- * Если Redis включён, счётчики живут в общем хранилище и переживают
- * рестарт backend. При недоступности Redis `passOnStoreError` пропускает
- * запросы — лимиты временно не действуют, но приложение не падает.
- */
 function buildStore(prefix) {
   if (!redisClient.isEnabled()) return undefined;
 
@@ -44,7 +35,6 @@ function createLimiter({ windowMs = 60 * 1000, max = 60, message, prefix = 'defa
   });
 }
 
-// Аутентификация: защита от перебора паролей.
 const authLimiter = createLimiter({
   windowMs: 15 * 60 * 1000,
   max: 30,
@@ -52,7 +42,6 @@ const authLimiter = createLimiter({
   message: 'Too many authentication attempts, please try again later',
 });
 
-// Прогнозы/комментарии: защита от спама.
 const predictionWriteLimiter = createLimiter({
   windowMs: 60 * 1000,
   max: 30,
@@ -60,7 +49,6 @@ const predictionWriteLimiter = createLimiter({
   message: 'Too many prediction requests, please slow down',
 });
 
-// Повторная отправка письма подтверждения: не дать сделать почтовый спам.
 const resendVerificationLimiter = createLimiter({
   windowMs: 60 * 60 * 1000,
   max: 5,
@@ -68,7 +56,6 @@ const resendVerificationLimiter = createLimiter({
   message: 'Слишком много запросов на отправку письма. Попробуйте позже',
 });
 
-// Админский синк: тяжёлая операция, запуск вручную.
 const adminSyncLimiter = createLimiter({
   windowMs: 60 * 1000,
   max: 5,

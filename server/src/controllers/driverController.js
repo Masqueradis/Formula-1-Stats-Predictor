@@ -58,7 +58,6 @@ async function remove(req, res) {
   }
 }
 
-/** Биография и фото из Wikipedia (ru → en фолбэк) — эпик-09, P2 */
 async function getWiki(req, res) {
   try {
     const result = await wikiService.getDriverWiki(req.params.id);
@@ -69,7 +68,6 @@ async function getWiki(req, res) {
   }
 }
 
-/** Карьера пилота: Jolpica/Ergast + локальный fallback — эпик-09, P4 */
 async function getCareer(req, res) {
   try {
     const result = await careerService.getCareer(req.params.id);

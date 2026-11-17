@@ -1,10 +1,3 @@
-/**
- * BUG-09: значение ячейки для сортировки таблиц зачётов.
- *
- * В личном зачёте команда лежит в `row.team.name`, в Кубке конструкторов —
- * в `row.name`. Раньше для обоих случаев читался `row.name`, поэтому
- * сортировка пилотов по команде не работала.
- */
 export function valueFor(row, key) {
   if (!row) return ''
   if (key === 'driver') return `${row.lastName || ''} ${row.firstName || ''}`.toLowerCase()

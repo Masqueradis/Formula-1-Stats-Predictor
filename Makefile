@@ -1,5 +1,4 @@
 COMPOSE = docker compose -f docker/docker-compose.yml
-# Полный стек (включая dev-профиль: nodemon + vite)
 COMPOSE_ALL = $(COMPOSE) --profile dev
 DGREEN := \033[32m
 RESET := \033[0m

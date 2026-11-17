@@ -1,7 +1,6 @@
 const TEXT_TYPES = new Set(['text', 'search', 'email', 'url', 'tel'])
 
 export default function Input({ label, type = 'text', className = '', maxLength, ...props }) {
-  // Эпик-13 (BUG-20): длинный ввод не должен ломать вёрстку и запросы.
   const effectiveMaxLength = maxLength ?? (TEXT_TYPES.has(type) ? 120 : undefined)
 
   return (

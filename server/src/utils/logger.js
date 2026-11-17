@@ -1,12 +1,5 @@
 'use strict';
 
-/**
- * Структурированное логирование ключевых событий (эпик-09, Phase 6b).
- *
- * Одна JSON-строка на событие → Promtail (docker_sd) раскладывает
- * `level`/`event` по label'ам Loki → фильтрация в LogQL/Grafana
- * ({service="backend"} | json | event="auth.login").
- */
 function logEvent(level, event, fields = {}) {
   const line = JSON.stringify({
     level,

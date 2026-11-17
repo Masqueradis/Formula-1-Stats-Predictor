@@ -41,7 +41,6 @@ const STATUS_BADGES = {
 
 const STATUS_LABELS = Object.fromEntries(STATUS_OPTIONS.map(s => [s.value, s.label]))
 
-/** US-7: пусто → ссылки нет; иначе должен быть http(s)-URL (сервер тоже валидирует) */
 function isValidBroadcastUrl(value) {
   const trimmed = String(value || '').trim()
   return !trimmed || /^https?:\/\/\S+$/i.test(trimmed)
@@ -67,10 +66,6 @@ function optionalNumber(value) {
   return trimmed === '' ? null : Number(trimmed)
 }
 
-/**
- * BUG-04: пустые строки date/координат нельзя отправлять в API —
- * Postgres падал с «invalid input syntax for type date/numeric».
- */
 function toRacePayload(form) {
   return {
     name: form.name.trim(),
@@ -93,13 +88,10 @@ export default function AdminRaces() {
   const [seasons, setSeasons] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  // Эпик-10: после бэкфилла /races без сезона отдаёт 500+ гонок — грузим по сезону
   const [seasonFilter, setSeasonFilter] = useState('')
   const [confirm, setConfirm] = useState(null)
   const [pendingId, setPendingId] = useState(null)
 
-  // Список сезонов строится из /history/seasons: после создания/переноса/удаления
-  // гонки его нужно перечитать, иначе нового сезона нет в селекте (BUG-04).
   const syncSeasons = useCallback(async (preferred) => {
     try {
       const { data } = await api.get('/history/seasons')

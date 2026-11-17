@@ -2,21 +2,11 @@
 
 require('../config/env');
 
-/**
- * Cron-джоба e-mail напоминаний за 24 часа до старта гонки (эпик-09, todo 7).
- *
- * - первый прогон сразу при старте (после connectMongo — нужен журнал дедупликации),
- * - далее каждый час (EMAIL_REMINDER_CRON_SCHEDULE, дефолт "0 * * * *"),
- * - письма шлёт emailService (SMTP/MailHog), дубли отсекает журнал
- *   email_reminders (unique raceId+userId) — прогон идемпотентен.
- */
-
 const cron = require('node-cron');
 const { sendUpcomingReminders } = require('../services/raceReminderService');
 
 function isEnabled() {
   const raw = process.env.EMAIL_REMINDER_CRON_ENABLED;
-  // По умолчанию включено: фича не должна зависеть от наличия env на стенде
   return (raw === undefined ? 'true' : raw).toLowerCase() === 'true';
 }
 

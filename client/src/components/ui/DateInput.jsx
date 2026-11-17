@@ -1,13 +1,5 @@
 import { useEffect, useState } from 'react'
 
-/**
- * Эпик-13 (BUG-19): поле даты с фиксированным форматом `дд.мм.гггг`.
- *
- * Нативный `<input type="date">` показывает дату в локали браузера (в `en-US` —
- * `mm/dd/yyyy`), поэтому используем текстовое поле с маской: наружу компонент
- * принимает/отдаёт ISO (`yyyy-mm-dd`), а пользователь видит и вводит `дд.мм.гггг`.
- */
-
 const ISO_RE = /^\d{4}-\d{2}-\d{2}$/
 
 function isoToDisplay(iso) {
@@ -27,7 +19,6 @@ function isValidIso(iso) {
   )
 }
 
-/** «12032026» → «12.03.2026»; лишние символы отбрасываются. */
 function maskDisplay(raw) {
   const digits = String(raw || '').replace(/\D/g, '').slice(0, 8)
   return [digits.slice(0, 2), digits.slice(2, 4), digits.slice(4, 8)]
@@ -35,7 +26,6 @@ function maskDisplay(raw) {
     .join('.')
 }
 
-/** Полная маска → ISO или null, если дата неполная/некорректная. */
 function displayToIso(display) {
   const digits = String(display || '').replace(/\D/g, '')
   if (digits.length !== 8) return null
@@ -58,7 +48,6 @@ export default function DateInput({
   const [text, setText] = useState(() => isoToDisplay(value))
   const [invalid, setInvalid] = useState(false)
 
-  // Синхронизация с внешним значением (загрузка формы, сброс фильтров).
   useEffect(() => {
     setText(isoToDisplay(value))
     setInvalid(false)
@@ -81,14 +70,12 @@ export default function DateInput({
 
     const complete = masked.replace(/\D/g, '').length === 8
     setInvalid(complete)
-    // Неполный ввод означает «дата очищена», чтобы фильтры не держали старое значение.
     if (value) emit('')
   }
 
   const handleBlur = () => {
     if (!text) return
     if (displayToIso(text)) return
-    // Незаконченный ввод откатываем к последнему валидному значению.
     setText(isoToDisplay(value))
     setInvalid(false)
   }

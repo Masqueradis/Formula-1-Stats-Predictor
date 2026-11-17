@@ -21,9 +21,9 @@ export default function VotePage() {
   const [doc, setDoc] = useState(null)
   const [stats, setStats] = useState([])
   const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState('') // { status, message }
+  const [error, setError] = useState('')
   const [liveAt, setLiveAt] = useState(0)
-  const [boardBusy, setBoardBusy] = useState(false) // идёт DnD/сохранение — не трогаем doc
+  const [boardBusy, setBoardBusy] = useState(false)
   const boardBusyRef = useRef(false)
 
   useEffect(() => { boardBusyRef.current = boardBusy }, [boardBusy])
@@ -58,26 +58,21 @@ export default function VotePage() {
     load()
   }, [load])
 
-  // ── Live (лаба 7): комната гонки ────────────────────────────────────────
   const raceId = doc?.raceId || null
 
-  // Вход в комнату race:<raceId>; при смене гонки/размонтировании — выход
   useEffect(() => {
     if (!raceId || !connected) return undefined
     return joinRace(raceId)
   }, [raceId, connected, joinRace])
 
-  /** Тихий refetch документа (без спиннера) */
   const refreshDoc = useCallback(async (id) => {
     try {
       const { data } = await api.get(`/predictions/race/${encodeURIComponent(id)}`)
       setDoc(data.data)
     } catch {
-      /* тихо игнорируем — обычная загрузка покажет ошибку */
     }
   }, [])
 
-  // vote:update → обновляем «Народный рейтинг» всегда, документ — только когда доска свободна
   useEffect(() => {
     if (!raceId) return undefined
     return subscribe('vote:update', (payload) => {
@@ -88,7 +83,6 @@ export default function VotePage() {
     })
   }, [raceId, subscribe, loadStats, refreshDoc])
 
-  // comment:update → тихо обновляем документ (комментарии не влияют на рейтинг)
   useEffect(() => {
     if (!raceId) return undefined
     return subscribe('comment:update', (payload) => {
@@ -98,7 +92,6 @@ export default function VotePage() {
     })
   }, [raceId, subscribe, refreshDoc])
 
-  // race:status (смена статуса гонки) → тост + перезагрузка
   useEffect(() => {
     return subscribe('race:status', (payload) => {
       const label = payload?.status === 'finished' ? 'завершён' : payload?.status === 'cancelled' ? 'отменён' : 'запланирован'
@@ -112,8 +105,6 @@ export default function VotePage() {
     loadStats(updatedDoc.raceId)
   }
 
-  // Комментарии (в т.ч. лайки) не влияют на рейтинг — только обновляем документ,
-  // без refetch stats (иначе таблица перерисовывалась бы при каждом лайке)
   const handleCommentsChanged = (updatedDoc) => {
     setDoc(updatedDoc)
   }
@@ -206,7 +197,6 @@ export default function VotePage() {
         </p>
       </Card>
 
-      {/* BUG-15: сначала общий народный рейтинг, затем личный прогноз и комментарии */}
       <VotersSummary doc={doc} user={user} stats={stats} onChanged={handleDocChanged} />
 
       <Disclosure

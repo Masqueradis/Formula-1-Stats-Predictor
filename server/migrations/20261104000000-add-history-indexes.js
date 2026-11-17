@@ -1,14 +1,5 @@
 'use strict';
 
-/**
- * Индексы для запросов истории (эпик-10).
- *
- * Миграция идемпотентна: `sequelize.sync()` и предыдущие частичные прогоны
- * могли уже создать часть индексов, поэтому перед созданием проверяем
- * фактическое состояние схемы. Индексы по `externalId` не дублируем —
- * уникальные индексы `*_external_id_unique` уже созданы миграцией 11.
- */
-
 const INDEXES = [
   { table: 'races', name: 'races_season_round', fields: ['season', 'round'] },
   { table: 'races', name: 'races_season_date', fields: ['season', 'date'] },

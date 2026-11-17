@@ -1,15 +1,5 @@
 'use strict';
 
-/**
- * Эпик-10: бэкфилл исторических сезонов Jolpica.
- *
- *   npm run sync:history -- 2000 2025              # диапазон + текущий сезон
- *   npm run sync:history -- 2000 2025 --no-current # только диапазон
- *   npm run sync:history -- 2013                   # один сезон
- *
- * Идемпотентно: повторный запуск обновляет существующие записи.
- */
-
 require('../config/env');
 
 const { sequelize } = require('../models');

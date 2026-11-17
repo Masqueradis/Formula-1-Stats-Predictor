@@ -28,7 +28,6 @@ export default function HistoryPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isError, setIsError] = useState(false)
 
-  // Сезоны и сезон по умолчанию: последний завершённый, а не текущий
   useEffect(() => {
     let cancelled = false
     api.get('/history/seasons')
@@ -44,7 +43,6 @@ export default function HistoryPage() {
       })
       .catch(() => { if (!cancelled) setIsError(true) })
     return () => { cancelled = true }
-  // searchParams намеренно читаем только при монтировании
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

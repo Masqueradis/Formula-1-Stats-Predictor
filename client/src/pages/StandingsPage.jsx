@@ -35,16 +35,14 @@ export default function StandingsPage() {
   const { subscribe } = useSocket()
   const [searchParams, setSearchParams] = useSearchParams()
   const type = searchParams.get('type') === 'constructors' ? 'constructors' : 'drivers'
-  // Эпик-10: зачёты можно смотреть за любой сезон (по умолчанию — текущий)
   const seasonParam = searchParams.get('season')
   const [seasons, setSeasons] = useState([])
   const [data, setData] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isError, setIsError] = useState(false)
   const [sort, setSort] = useState({ key: 'points', dir: 'desc' })
-  const [liveAt, setLiveAt] = useState(0) // момент последнего live-обновления (для бейджа)
+  const [liveAt, setLiveAt] = useState(0)
 
-  // Список сезонов для селектора (архив 2000–2025 + текущий)
   useEffect(() => {
     let cancelled = false
     api.get('/history/seasons')
@@ -72,7 +70,6 @@ export default function StandingsPage() {
 
   useEffect(() => { load() }, [load])
 
-  // Live-обновление таблицы (лаба 7): событие standings:update → тихий refetch без спиннера
   useEffect(() => {
     return subscribe('standings:update', () => {
       setLiveAt(Date.now())

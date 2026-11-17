@@ -74,10 +74,6 @@ async function externalIdMap(queryInterface, table) {
 
 module.exports = {
   async up(queryInterface) {
-    // Идемпотентность (эпик-08): контейнер запускает сиды при каждом старте.
-    // Если данные уже вставлены (например, прошлым прогоном вне sequelize-cli),
-    // просто выходим — sequelize-cli запишет сидер в SequelizeData и не будет
-    // падать на дублях (externalId/username — уникальные ключи).
     const [[{ count }]] = await queryInterface.sequelize.query(
       'SELECT count(*)::int AS count FROM "teams"',
     );
@@ -109,8 +105,6 @@ module.exports = {
         season: season.season,
         driverId: driverIds.get(s.driverExternalId),
         teamId: teamIds.get(s.teamExternalId),
-        // Резервисты помечены в данных сезона (seasonTeamsOrdered): Tsunoda,
-        // Ocon, Lawson@Red Bull. Не попадают в состав для голосования/прогнозов.
         isReserve: s.isReserve === true,
         createdAt: new Date(),
         updatedAt: new Date(),

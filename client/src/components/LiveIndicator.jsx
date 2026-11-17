@@ -1,9 +1,5 @@
 import { useSocket } from '../context/useSocket'
 
-/**
- * Индикатор realtime-соединения и онлайна (лаба 7).
- * Показывает статус подключения и число пользователей (уникальных) + гостей.
- */
 export default function LiveIndicator({ className = '', compact = false }) {
   const { status, statusLabel, presence } = useSocket()
 

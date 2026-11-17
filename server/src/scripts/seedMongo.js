@@ -8,12 +8,6 @@ const predictionService = require('../services/predictionService');
 const predictionRepository = require('../repositories/predictionRepository');
 const userRepository = require('../repositories/userRepository');
 
-/**
- * Демо-данные в MongoDB для отчёта/повторного прогона testing.md:
- * документ следующей ГП + голоса (полные перестановки 1..N) + комментарии.
- * Идемпотентно: голос пользователя, уже существующий в документе, пропускается.
- */
-
 const DEMO_COMMENTS = [
   'Народный прогноз обновился — смотрите средние места по пилотам!',
   'Кажется, в этот уик-энд всё решит квалификация.',
@@ -34,11 +28,9 @@ async function main() {
     throw new Error('MongoDB is unavailable — check MONGO_URI / docker compose');
   }
 
-  // Документ следующей гонки (ленивый create из PostgreSQL)
   const doc = await predictionService.getNext();
   console.log(`[seed:mongo] race ${doc.raceId} (${doc.raceName}), entries: ${doc.entries.length}`);
 
-  // Голоса от существующих демо-пользователей (users из PostgreSQL seed)
   const demoUsers = [];
   for (const username of ['maxfan', 'admin']) {
     const user = await userRepository.findByUsername(username);

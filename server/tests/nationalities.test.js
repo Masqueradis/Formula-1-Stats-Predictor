@@ -1,9 +1,5 @@
 'use strict';
 
-/**
- * Эпик-13 (BUG-18): справочник национальностей.
- */
-
 const { toRussianNationality, NATIONALITY_RU } = require('../src/utils/nationalities');
 
 describe('toRussianNationality', () => {

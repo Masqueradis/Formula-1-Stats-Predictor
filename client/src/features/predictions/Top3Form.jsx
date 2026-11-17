@@ -16,18 +16,12 @@ function formatDate(value) {
   return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
 }
 
-/**
- * US-5 — личный прогноз ТОП-3 на ближайший Гран-при (кабинет).
- *
- * Бэкенд: `kind: 'top3'` в predictionService (по одному 'full' и 'top3' на пользователя).
- * POST — новый прогноз, PUT — правка существующего (привязка к пользователю — userId из JWT).
- */
 export default function Top3Form() {
   const toast = useToast()
   const { user } = useAuth()
 
   const [doc, setDoc] = useState(null)
-  const [error, setError] = useState('') // '' | 'no-race' | 'mongo-down' | текст
+  const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [hasMyVote, setHasMyVote] = useState(false)

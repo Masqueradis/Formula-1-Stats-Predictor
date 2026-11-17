@@ -85,7 +85,6 @@ async function getAll({ driverId, raceId, season } = {}) {
   return raceResultRepository.findAllWithOptions({ driverId, raceId, season: normalized });
 }
 
-/** Эпик-10: `?season=YYYY` (или `current`) — иначе 400. */
 function normalizeSeason(raw) {
   if (raw === undefined || raw === null || raw === '') return undefined;
   if (String(raw).toLowerCase() === 'current') return 'current';

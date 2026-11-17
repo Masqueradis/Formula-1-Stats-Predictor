@@ -19,10 +19,8 @@ export default function DriverDetail() {
   const [driver, setDriver] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isError, setIsError] = useState(false)
-  // Биография из Wikipedia (эпик-09, P2): отдельный стейт, ошибка не валит страницу
   const [wiki, setWiki] = useState(null)
-  const [wikiState, setWikiState] = useState('idle') // idle | loading | ready | error
-  // Карьера (эпик-09, P4): Jolpica + локальный fallback
+  const [wikiState, setWikiState] = useState('idle')
   const [career, setCareer] = useState(null)
   const [careerState, setCareerState] = useState('idle')
   useDocumentTitle(driver ? `${driver.firstName} ${driver.lastName}` : 'Пилот')

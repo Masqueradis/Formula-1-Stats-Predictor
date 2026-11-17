@@ -46,8 +46,6 @@ async function getDriversStandings(season) {
     });
   }
 
-  // BUG-08: раньше бралась последняя строка (id) — дубль Lawson в Red Bull
-  // перекрывал Racing Bulls. Helper учитывает isReserve и сезон.
   for (const [driverId, rows] of seasonTeamsByDriver) {
     const current = pickCurrentSeasonTeam(rows);
     if (current?.team) teamByDriver.set(driverId, current.team);

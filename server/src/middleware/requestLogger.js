@@ -2,11 +2,6 @@
 
 const { logEvent } = require('../utils/logger');
 
-/**
- * Логирование API-вызовов (эпик-09, Phase 6b): одна JSON-строка на запрос
- * с методом, путём, статусом и длительностью. 5xx → level=error,
- * 4xx → warn, остальное → info. Health-check не логируем (слишком часто).
- */
 function requestLogger(req, res, next) {
   if (req.path === '/api/health') return next();
 

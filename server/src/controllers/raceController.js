@@ -50,7 +50,6 @@ async function remove(req, res) {
   }
 }
 
-/** Погода на уик-энд ГП (Open-Meteo по координатам трассы) — эпик-09, P2 */
 async function getWeather(req, res) {
   try {
     const result = await weatherService.getRaceWeather(req.params.id);

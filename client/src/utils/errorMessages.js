@@ -1,8 +1,3 @@
-/**
- * Эпик-13 (BUG-17): единый перевод ошибок API на русский.
- * Backend отдаёт `{ success: false, error, details? }`; часть сообщений
- * приходит из Sequelize/Postgres и остаётся английской.
- */
 
 const EXACT = {
   'Invalid credentials': 'Неверный email или пароль.',
@@ -65,7 +60,6 @@ export function translateApiMessage(raw) {
   for (const [pattern, message] of PATTERNS) {
     if (pattern.test(text)) return message
   }
-  // Уже русское сообщение (например, из новых ответов backend) — не трогаем.
   if (/[а-яё]/i.test(text)) return text
   return null
 }

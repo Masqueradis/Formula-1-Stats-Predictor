@@ -1,10 +1,5 @@
 'use strict';
 
-/**
- * newsService — юнит-тесты с моком fetch (без сети и без БД).
- * Дисковый кэш мокан через fs, ин-мем кэш сбрасывается isolateModules.
- */
-
 jest.mock('fs', () => ({
   readFileSync: jest.fn(() => {
     throw new Error('ENOENT: no cache');
@@ -13,13 +8,11 @@ jest.mock('fs', () => ({
   mkdirSync: jest.fn(),
 }));
 
-// newsService тянет models для keyword-фильтров (driverId/teamId) — в юнит-тестах БД нет
 jest.mock('../src/models', () => ({
   Driver: { findByPk: jest.fn(async () => null) },
   Team: { findByPk: jest.fn(async () => null) },
 }));
 
-// Архив в Postgres (todo 14) — мок репозитория, БД в юнит-тестах нет
 jest.mock('../src/repositories/newsItemRepository', () => ({
   upsertMany: jest.fn(async () => 0),
   search: jest.fn(async () => ({ items: [], total: 0, page: 1, limit: 12, totalPages: 0 })),
@@ -115,17 +108,14 @@ describe('newsService (мок fetch)', () => {
     expect(item.title).toBe('Verstappen & Red Bull dominate');
     expect(item.lang).toBe('en');
     expect(item.source.id).toBe('bbc');
-    // HTML вычищен, длина ≤ 200 (MAX_DESCRIPTION_LENGTH)
     expect(item.description).not.toMatch(/<p>/);
     expect(item.description.length).toBeLessThanOrEqual(200);
     expect(item.publishedAt).toBe('2026-10-22T12:00:00.000Z');
     expect(item.image).toBe('https://img.test/a.jpg');
 
-    // свежая лента пишется в дисковый кэш
     expect(fs.writeFileSync).toHaveBeenCalled();
     expect(fs.mkdirSync).toHaveBeenCalled();
 
-    // и в архив Postgres (todo 14) — одним вызовом upsertMany
     expect(lastRepo.upsertMany).toHaveBeenCalledTimes(1);
     const archived = lastRepo.upsertMany.mock.calls[0][0];
     expect(archived.map((i) => i.link)).toContain('https://bbc.test/a');
@@ -180,11 +170,9 @@ describe('newsService (мок fetch)', () => {
     expect(bySearch.total).toBe(1);
     expect(bySearch.items[0].link).toBe('https://bbc.test/w1');
 
-    // спецсимволы в поиске не роняют RegExp
     const tricky = await service.getNews({ search: 'rules (explained)' });
     expect(tricky.total).toBe(1);
 
-    // фильтр по датам (границы суток UTC)
     const byDate = await service.getNews({ from: '2026-10-22', to: '2026-10-22' });
     expect(byDate.total).toBe(3);
     const older = await service.getNews({ to: '2026-10-21' });
@@ -289,7 +277,7 @@ describe('newsService (мок fetch)', () => {
     expect(result).toMatchObject({
       total: 30,
       page: 2,
-      hasMore: true, // offset 12 + 1 < 30
+      hasMore: true,
       archive: true,
       offline: false,
     });
@@ -315,7 +303,6 @@ describe('newsService (мок fetch)', () => {
     const service = loadService();
     const result = await service.getNews();
 
-    // Sky Sports/Autosport отдают BST/CEST — раньше Invalid Date.toISOString() ронял весь источник
     const bst = result.items.find((i) => i.link === 'https://bbc.test/bst');
     const cest = result.items.find((i) => i.link === 'https://f1i.test/cest');
     expect(bst.publishedAt).toBe('2026-10-22T05:00:00.000Z');

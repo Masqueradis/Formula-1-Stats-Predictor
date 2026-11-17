@@ -1,10 +1,5 @@
 'use strict';
 
-/**
- * careerService — юнит-тесты без сети и БД:
- * Jolpica-клиент и модели замоканы.
- */
-
 jest.mock('../src/models', () => ({
   Driver: { findByPk: jest.fn() },
   RaceResult: { findAll: jest.fn(async () => []) },
@@ -43,7 +38,7 @@ describe('careerService.aggregate', () => {
     const career = careerService.aggregate([
       ergastResult({ season: 2021, position: 1, points: 25, grid: 1, fastest: true }),
       ergastResult({ season: 2021, position: 2, points: 18, grid: 3 }),
-      ergastResult({ season: 2021, position: null, points: 0, grid: 4 }), // сход
+      ergastResult({ season: 2021, position: null, points: 0, grid: 4 }),
       ergastResult({ season: 2022, position: 4, points: 12, grid: 5 }),
     ]);
 
@@ -72,7 +67,7 @@ describe('careerService.getCareer', () => {
     jolpicaClient.getJson
       .mockResolvedValueOnce(page(
         [{ season: '2023', Results: [ergastResult({ season: 2023, position: 1, points: 25, grid: 1 })] }],
-        101, // total 101 при limit 100 → ждём две страницы
+        101,
       ))
       .mockResolvedValueOnce(page(
         [{ season: '2024', Results: [ergastResult({ season: 2024, position: 3, points: 15, grid: 2, fastest: true })] }],
@@ -86,7 +81,6 @@ describe('careerService.getCareer', () => {
     expect(jolpicaClient.getJson).toHaveBeenCalledTimes(2);
     expect(jolpicaClient.getJson.mock.calls[1][0]).toContain('offset=100');
 
-    // повторный запрос — из кэша, без новых вызовов Jolpica
     const again = await careerService.getCareer(7);
     expect(again.cached).toBe(true);
     expect(jolpicaClient.getJson).toHaveBeenCalledTimes(2);

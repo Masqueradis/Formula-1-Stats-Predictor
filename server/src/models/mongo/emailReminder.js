@@ -2,16 +2,9 @@
 
 const mongoose = require('mongoose');
 
-/**
- * Журнал отправленных email-напоминаний о гонке (эпик-09, todo 7).
- *
- * Одна запись = одному пользователю отправлено напоминание о конкретной гонке.
- * Уникальный индекс (raceId, userId) гарантирует идемпотентность cron-джобы:
- * повторные прогоны не шлют дубли писем.
- */
 const emailReminderSchema = new mongoose.Schema({
-  raceId: { type: String, required: true }, // races.externalId | String(races.id)
-  userId: { type: Number, required: true }, // users.id (PostgreSQL)
+  raceId: { type: String, required: true },
+  userId: { type: Number, required: true },
   sentAt: { type: Date, default: Date.now },
 }, {
   timestamps: true,

@@ -27,7 +27,6 @@ function start() {
     try {
       const summary = await syncSeason(season);
       console.log(`[f1SyncJob] synced season ${season}:`, JSON.stringify(summary));
-      // Live-рассылка всем клиентам (лаба 7)
       realtime.emitStandings({ action: 'cron-sync', season });
       for (const change of summary.statusChanges || []) {
         realtime.emitRaceStatus(change);

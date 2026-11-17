@@ -2,11 +2,6 @@
 
 const { Op } = require('sequelize');
 
-/**
- * In-memory фейк sequelize-модели для юнит-тестов sync-сервисов:
- * поддерживает ровно те операции, которые используются в f1SyncService
- * (findOne/create/update/destroy/bulkCreate/findOrCreate/max).
- */
 function createFakeModel(initialRows = []) {
   const rows = [];
   let nextId = 1;
@@ -23,7 +18,6 @@ function createFakeModel(initialRows = []) {
 
   function matches(row, where = {}) {
     return Object.entries(where).every(([k, v]) => {
-      // Sequelize-оператор Op.in: { id: { [Op.in]: [1, 2] } }
       if (v && typeof v === 'object' && Array.isArray(v[Op.in])) {
         return v[Op.in].includes(row[k]);
       }

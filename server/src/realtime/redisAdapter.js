@@ -7,12 +7,6 @@ const logger = require('../utils/logger');
 const PUBLISH_WARN_COOLDOWN_MS = 10 * 1000;
 let lastPublishWarnAt = 0;
 
-/**
- * node-redis возвращает промисы из publish/subscribe, а @socket.io/redis-adapter
- * вызывает их fire-and-forget. При обрыве Redis промис реджектится с
- * ClientOfflineError → unhandledRejection → падение процесса.
- * Гасим такие reject'ы здесь: realtime продолжает работать локально.
- */
 function warnPublishFailed(err) {
   const now = Date.now();
   if (now - lastPublishWarnAt < PUBLISH_WARN_COOLDOWN_MS) return;
@@ -48,14 +42,6 @@ function guardClient(client) {
   guardAsyncMethod(client, 'unsubscribe');
 }
 
-/**
- * Redis-адаптер Socket.IO (эпик-11).
- *
- * Позволяет нескольким backend-инстансам видеть комнаты и broadcast друг
- * друга. При недоступности Redis приложение продолжает работать в
- * single-instance режиме. Для нескольких инстансов нужны sticky sessions
- * на балансировщике — это ограничение документировано.
- */
 async function setupRedisAdapter(io) {
   if (!redisClient.isEnabled()) return false;
 
@@ -84,7 +70,6 @@ async function setupRedisAdapter(io) {
       pubClient.disconnect();
       subClient.disconnect();
     } catch {
-      // клиенты могли не успеть подключиться
     }
     return false;
   }

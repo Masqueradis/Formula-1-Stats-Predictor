@@ -10,7 +10,6 @@ import useDocumentTitle from '../../hooks/useDocumentTitle'
 export default function TeamDetail() {
   const { id } = useParams()
   const [searchParams] = useSearchParams()
-  // Эпик-10: состав команды зависит от сезона (?season=YYYY)
   const season = searchParams.get('season')
   const [team, setTeam] = useState(null)
   const [isLoading, setIsLoading] = useState(true)

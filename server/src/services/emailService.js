@@ -11,16 +11,10 @@ function htmlEscape(value) {
 
 let transport;
 
-/**
- * Почта не используется в прод-конфигурации эпика-12.
- * Отправка включается только явным EMAIL_ENABLED=true — это исключает
- * попытки SMTP-подключения (и зависание на Render Free, где порты 25/465/587 закрыты).
- */
 function isEmailEnabled() {
   return process.env.EMAIL_ENABLED === 'true';
 }
 
-/** По умолчанию локальный MailHog; любой SMTP-провайдер задаётся переменными. */
 function smtpConfig() {
   return {
     host: process.env.SMTP_HOST || 'localhost',
@@ -38,7 +32,6 @@ function missingMailConfig() {
   const missing = [];
   if (!config.host) missing.push('SMTP_HOST');
   if (!config.port) missing.push('SMTP_PORT');
-  // Локальный MailHog не требует авторизации; внешний SMTP — требует.
   if (config.host !== 'localhost' && config.host !== '127.0.0.1') {
     if (!config.user) missing.push('SMTP_USER');
     if (!config.pass) missing.push('SMTP_PASS');
@@ -88,7 +81,6 @@ async function sendMail({ to, subject, html }) {
     });
     return { ok: true };
   } catch (err) {
-    // В лог только причина без учётных данных.
     console.error(`[mail] failed to send "${subject}" to ${to}:`, err.message);
     return { ok: false, error: err.message };
   }
@@ -139,10 +131,6 @@ function sendWelcomeEmail(to, username) {
   return sendMail({ to, subject: 'Аккаунт подтверждён — Simply Lovely', html: layout('Почта подтверждена', body) });
 }
 
-/**
- * Напоминание о гонке за ≤24 часа (эпик-09 todo 7): дата/трасса + избранные
- * пилоты пользователя + ссылка на голосование.
- */
 function sendRaceReminderEmail(to, username, race, favoriteDrivers = []) {
   const base = process.env.FRONTEND_URL || 'http://localhost:5173';
   const voteUrl = `${base}/vote`;

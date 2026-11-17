@@ -2,10 +2,8 @@
 
 const crypto = require('crypto');
 
-/** Срок действия ссылки подтверждения — 24 часа (как указано в письме). */
 const TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 
-/** В БД хранится только хеш токена: утечка БД не даёт возможности подтвердить чужой email. */
 function hashToken(token) {
   return crypto.createHash('sha256').update(String(token)).digest('hex');
 }

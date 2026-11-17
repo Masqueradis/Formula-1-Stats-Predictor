@@ -2,16 +2,6 @@
 
 require('../config/env');
 
-/**
- * UC-2 — cron-джоба начисления баллов по результатам завершённых гонок
- * и пересчёта рейтинга предсказателей (US-6).
- *
- * - сразу при старте (чтобы рейтинг не был пуст после ребута) — триггер 'startup';
- * - далее по расписанию (по умолчанию каждые 10 минут, LEADERBOARD_CRON_SCHEDULE);
- * - при изменениях рассылает Socket.IO: 'leaderboard:update' (новое событие)
- *   и 'standings:update' (как этого требует формулировка UC-2).
- */
-
 const cron = require('node-cron');
 const { recalculate } = require('../services/leaderboardService');
 const { invalidateApiCache } = require('../cache/invalidate');
@@ -19,7 +9,6 @@ const realtime = require('../realtime/io');
 
 function isEnabled() {
   const raw = process.env.LEADERBOARD_CRON_ENABLED;
-  // По умолчанию включено: фича не должна зависеть от наличия env на стенде
   return (raw === undefined ? 'true' : raw).toLowerCase() === 'true';
 }
 

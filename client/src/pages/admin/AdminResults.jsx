@@ -35,7 +35,6 @@ export default function AdminResults() {
   const toast = useToast()
   const [drivers, setDrivers] = useState([])
   const [races, setRaces] = useState([])
-  // Эпик-10: сезон-селектор вместо загрузки всех 500+ гонок сразу
   const [seasons, setSeasons] = useState([])
   const [season, setSeason] = useState('')
   const [loading, setLoading] = useState(true)
@@ -88,7 +87,6 @@ export default function AdminResults() {
     loadRaces(season)
   }, [season, loadRaces])
 
-  // При смене сезона список доступных гонок другой — сбрасываем выбранную
   useEffect(() => {
     setAddForm((prev) => ({ ...prev, raceId: '' }))
   }, [season])

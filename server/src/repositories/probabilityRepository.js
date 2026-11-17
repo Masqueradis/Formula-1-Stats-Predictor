@@ -3,7 +3,6 @@
 const { Race, RaceResult, SeasonTeam } = require('../models');
 const { Op } = require('sequelize');
 
-/** Ближайшая предстоящая Гран-при (та же логика, что в predictionService.getNext). */
 async function findNextRace() {
   const today = new Date().toISOString().slice(0, 10);
   return Race.findOne({
@@ -12,7 +11,6 @@ async function findNextRace() {
   });
 }
 
-/** Состав сезона (регулярные пилоты): season_teams без резервистов, с пилотом и командой. */
 async function findRoster(season) {
   return SeasonTeam.findAll({
     where: { season, isReserve: false },
@@ -24,7 +22,6 @@ async function findRoster(season) {
   });
 }
 
-/** Все результаты сезона (race + sprint) с датами гонок — для формы/стартовых позиций. */
 async function findSeasonResults(season) {
   return RaceResult.findAll({
     where: { '$race.season$': season },
@@ -34,7 +31,6 @@ async function findSeasonResults(season) {
   });
 }
 
-/** Исторические результаты на конкретном автодроме (все сезоны) — для H_track. */
 async function findCircuitResults(circuit) {
   if (!circuit) return [];
   return RaceResult.findAll({

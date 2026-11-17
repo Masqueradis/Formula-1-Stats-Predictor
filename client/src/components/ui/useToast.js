@@ -1,6 +1,5 @@
 import { createContext, useContext } from 'react'
 
-/** Контекст глобальных тостов. Провайдер — `ToastProvider` в `Toast.jsx`. */
 export const ToastContext = createContext(null)
 
 export function useToast() {

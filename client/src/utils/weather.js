@@ -1,13 +1,7 @@
-/**
- * Погода на гонку: прямой запрос Open-Meteo как фолбэк, когда бэкенд
- * получает 429/502 (общий IP Render упирается в лимит провайдера).
- * Браузер ходит со своего IP — у Open-Meteo разрешён CORS (`*`).
- */
 
 export const OPEN_METEO_URL = 'https://api.open-meteo.com/v1/forecast'
 export const FALLBACK_STATUSES = [429, 502, 503, 504]
 
-// WMO weather interpretation codes → человекочитаемое описание
 export const WEATHER_CODES = {
   0: 'Ясно',
   1: 'Малооблачно',

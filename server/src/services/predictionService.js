@@ -21,12 +21,10 @@ function parseId(rawId) {
   return Number.isInteger(id) && id > 0 ? id : null;
 }
 
-/** Ключ гонки в Mongo: races.externalId (напр. "2026-5"), иначе числовой id */
 function raceKey(race) {
   return race.externalId || String(race.id);
 }
 
-/** Поиск гонки в PostgreSQL по externalId или по числовому id */
 async function resolveRace(rawRaceId) {
   if (!rawRaceId) return null;
   const byExternal = await raceRepository.findOne({ externalId: String(rawRaceId) });
@@ -46,11 +44,6 @@ function driverFields(driver) {
   };
 }
 
-/**
- * Эпик-13 (BUG-08), вариант A «Последняя гонка»: состав голосования —
- * участники последней завершённой гонки сезона. Автоматически учитывает
- * замены (Камара/Хиракава), не даёт дублей (Lawson) и 4 пилотов в Haas.
- */
 async function buildLastRaceEntries(season) {
   const lastRace = await raceRepository.findOne(
     { season, status: 'finished' },
@@ -79,8 +72,6 @@ async function buildLastRaceEntries(season) {
   return entries.length ? entries : null;
 }
 
-/** Заявка сезона из season_teams — fallback до первой завершённой гонки.
- *  isReserve (резервисты/замены) исключаются. */
 async function buildRosterEntries(season) {
   const seasonTeams = await seasonTeamRepository.findAll({
     where: { season, isReserve: false },
@@ -105,17 +96,12 @@ async function buildRosterEntries(season) {
   return entries;
 }
 
-/** Состав пилотов сезона для документа народного прогноза. */
 async function buildEntries(season) {
   const lastRaceEntries = await buildLastRaceEntries(season);
   if (lastRaceEntries) return lastRaceEntries;
   return buildRosterEntries(season);
 }
 
-/**
- * Снапшот документа должен соответствовать PostgreSQL: состав гонки (season_teams,
- * включая isReserve) и метаданные гонки (статус/дата) обновляются при каждом чтении.
- */
 async function refreshSnapshot(doc, race) {
   const entries = await buildEntries(race.season);
   const fresh = {
@@ -140,7 +126,6 @@ async function refreshSnapshot(doc, race) {
   return predictionRepository.setFields(doc.raceId, fields);
 }
 
-/** Ленивое создание документа гонки в MongoDB (снимок состава из PG) */
 async function ensureDoc(race) {
   const raceId = raceKey(race);
   const existing = await predictionRepository.findByRaceId(raceId);
@@ -159,7 +144,6 @@ async function ensureDoc(race) {
       entries,
     });
   } catch (err) {
-    // Гонку могли создать конкурентно — возвращаем существующий документ
     if (err.code === 11000) {
       const doc = await predictionRepository.findByRaceId(raceId);
       if (doc) return doc;
@@ -175,7 +159,6 @@ async function getDocForRace(rawRaceId) {
   return { race, doc };
 }
 
-/** Правило «голосование до старта»: закрыто начиная с дня гонки (дата из PG — DATEONLY) */
 function isVotingOpen(json) {
   if (json.status !== 'scheduled') return false;
   if (!json.date) return true;
@@ -198,7 +181,6 @@ async function displayUser(userId) {
   return user ? user.username : `user#${userId}`;
 }
 
-/** Нормализация входа: { kind: 'full'|'top3', picks: [{driverId, position}] } */
 function normalizePicks(body) {
   const kind = body && body.kind === 'top3' ? 'top3' : 'full';
   const raw = body && Array.isArray(body.picks) ? body.picks : null;
@@ -218,11 +200,6 @@ function normalizePicks(body) {
   return { kind, picks };
 }
 
-/**
- * Кросс-проверка прогноза против состава документа (entries).
- * 'full'  — полная перестановка 1..N по ВСЕМ пилотам гонки (народный прогноз).
- * 'top3'  — ровно 3 пилота, места 1-2-3 (личный прогноз кабинета US-5).
- */
 function validatePicks(doc, kind, picks) {
   const entryIds = doc.entries.map((e) => e.driverId);
   const driverIds = picks.map((p) => p.driverId);
@@ -254,7 +231,6 @@ function validatePicks(doc, kind, picks) {
   }
 }
 
-// ---------- Чтение ----------
 
 async function getAll() {
   const docs = await predictionRepository.findAll();
@@ -266,7 +242,6 @@ async function getByRaceId(rawRaceId) {
   return presentDoc(doc);
 }
 
-/** Документ следующей гонки: min(date >= сегодня, status='scheduled') + ленивое создание */
 async function getNext() {
   const today = new Date().toISOString().slice(0, 10);
   const race = await raceRepository.findOne(
@@ -278,10 +253,6 @@ async function getNext() {
   return presentDoc(doc);
 }
 
-/**
- * Народный рейтинг: aggregation pipeline ($unwind → $group → $sort).
- * ?raceId= — по одной гонке; без параметра — по всем документам.
- */
 async function getStats(rawRaceId) {
   let match = {};
   let docs;
@@ -318,7 +289,6 @@ async function getStats(rawRaceId) {
     };
   });
 
-  // Для конкретной гонки добавляем пилотов без голосов (avgPosition: null)
   if (rawRaceId && docs[0]) {
     const known = new Set(stats.map((s) => s.driverId));
     for (const entry of docs[0].entries) {
@@ -337,7 +307,6 @@ async function getStats(rawRaceId) {
   return stats;
 }
 
-// ---------- Голосование ----------
 
 async function createVote(rawRaceId, user, body) {
   const { doc } = await getDocForRace(rawRaceId);
@@ -352,13 +321,11 @@ async function createVote(rawRaceId, user, body) {
     kind,
     picks,
   });
-  // Атомарное условие не совпало → голос этого пользователя уже есть
   if (!updated) {
     throw httpError(409, `You have already submitted a "${kind}" prediction for this race`);
   }
   logger.info('prediction.vote', { raceId: doc.raceId, userId: user.id, kind, action: 'created' });
   const presented = presentDoc(updated);
-  // Live-обновление народного прогноза для зрителей комнаты гонки (лаба 7)
   realtime.emitVote(doc.raceId, { action: 'created', userId: user.id, username, votesCount: presented.votes.length });
   return presented;
 }
@@ -388,7 +355,6 @@ async function updateVote(rawRaceId, targetUserId, user, body) {
   return presented;
 }
 
-/** kind опционален (query `?kind=full|top3`): без него удаляются все голоса пользователя на гонку */
 async function removeVote(rawRaceId, targetUserId, user, rawKind) {
   const targetId = parseId(targetUserId);
   if (targetId === null) throw httpError(404, 'Vote not found');
@@ -414,7 +380,6 @@ async function removeVote(rawRaceId, targetUserId, user, rawKind) {
   return presented;
 }
 
-// ---------- Комментарии ----------
 
 async function createComment(rawRaceId, user, body) {
   const { doc } = await getDocForRace(rawRaceId);
@@ -440,7 +405,6 @@ async function createComment(rawRaceId, user, body) {
   return presented;
 }
 
-/** Поиск комментария (subdocument) по _id; невалидный ObjectId → 404 */
 function findComment(doc, commentId) {
   if (!Types.ObjectId.isValid(commentId)) throw httpError(404, 'Comment not found');
   const comment = doc.comments.id(commentId);
@@ -466,7 +430,6 @@ async function removeComment(rawRaceId, commentId, user) {
   return presented;
 }
 
-/** Лайк: toggle через $addToSet / $pull (демонстрация обновления внутри массива) */
 async function toggleLike(rawRaceId, commentId, user) {
   const { doc } = await getDocForRace(rawRaceId);
   const comment = findComment(doc, commentId);
@@ -489,9 +452,7 @@ async function toggleLike(rawRaceId, commentId, user) {
   return presented;
 }
 
-// ---------- Удаление документа ----------
 
-/** Удаление документа гонки (ADMIN, роут) — findOneAndDelete возвращает удалённый */
 async function removeRaceDoc(rawRaceId) {
   const race = await resolveRace(rawRaceId);
   if (!race) throw httpError(404, 'Race not found');
@@ -500,10 +461,6 @@ async function removeRaceDoc(rawRaceId) {
   return deleted;
 }
 
-/**
- * Каскад между БД (решение В3): удаление гонки в PostgreSQL →
- * best-effort удаление её документа в MongoDB (связка двух БД вручную).
- */
 async function cascadeRemoveByRace(race) {
   try {
     const deleted = await predictionRepository.removeByRaceId(raceKey(race));
@@ -515,7 +472,6 @@ async function cascadeRemoveByRace(race) {
   }
 }
 
-// normalizePicks/validatePicks/isVotingOpen — экспортируются для unit-тестов (эпик-09)
 module.exports = {
   getAll,
   getByRaceId,

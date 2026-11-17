@@ -2,7 +2,6 @@ services:
   - type: web
     name: simply-lovely-api
     runtime: docker
-    # Сборка из папки бэкенда (монорепозиторий)
     rootDir: server
     dockerfilePath: ./Dockerfile
     plan: free

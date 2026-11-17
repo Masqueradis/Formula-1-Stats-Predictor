@@ -8,12 +8,6 @@ function toPlain(record) {
   return record;
 }
 
-/**
- * Эпик-13 (BUG-07/08): текущая команда — строка season_teams с максимальным
- * сезоном (а не последняя по id: исторический бэкфилл добавляет записи позже).
- * При равном сезоне приоритет у боевого пилота (isReserve=false), затем меньший id.
- * Общий helper: используется и в карточках пилотов, и в личном зачёте.
- */
 function pickCurrentSeasonTeam(seasonTeams) {
   const rows = Array.isArray(seasonTeams)
     ? seasonTeams.filter(Boolean)

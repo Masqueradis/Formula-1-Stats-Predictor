@@ -1,15 +1,5 @@
 'use strict';
 
-/**
- * Карьерная статистика пилота (эпик-09, P4).
- *
- * Историю берём из Jolpica/Ergast: `/drivers/{id}/results.json` отдаёт ВСЕ
- * результаты карьеры постранично (по 100), из них считаем старты, победы,
- * подиумы, поулы, быстрые круги, очки, сходы и разбивку по сезонам.
- * Если у пилота нет externalId или Jolpica недоступна — считаем по локальной
- * таблице race_results (то, что синхронизировано в БД), источник помечаем.
- */
-
 const jolpicaClient = require('../clients/jolpicaClient');
 const cacheService = require('../cache/cacheService');
 const cacheKeys = require('../cache/keys');
@@ -24,10 +14,6 @@ function emptySeason(season) {
   return { season, starts: 0, wins: 0, podiums: 0, points: 0 };
 }
 
-/**
- * Единая агрегация: элементы — результаты в форме Ergast
- * ({ position, positionText, points, grid, FastestLap, season }).
- */
 function aggregate(results) {
   const seasons = new Map();
   const totals = {
@@ -70,7 +56,6 @@ function aggregate(results) {
     if (String(result.grid) === '1') totals.poles += 1;
     if (String(result.FastestLap?.rank) === '1') totals.fastestLaps += 1;
 
-    // Ergast: R — сошёл, D — дисквалифицирован, E — исключён, W — снят
     if (['R', 'D', 'E', 'W'].includes(positionText)) totals.dnfs += 1;
     if (position && (totals.bestFinish === null || position < totals.bestFinish)) {
       totals.bestFinish = position;

@@ -23,17 +23,12 @@ import { useToast } from '../../components/ui/useToast'
 import errorMessage from '../../utils/errorMessages'
 import { createCollisionStrategy } from './dndCollision'
 
-/**
- * BUG-05: pointerWithin точнее closestCenter для явной зоны возврата в пул.
- * Для клавиатуры/фолбэка оставляем rectIntersection и closestCenter.
- */
 const collisionDetectionStrategy = createCollisionStrategy({
   pointerWithin,
   rectIntersection,
   closestCenter,
 })
 
-/** Перемешивание Фишера-Йейтса (для «Случайно») */
 function shuffle(items) {
   const arr = [...items]
   for (let i = arr.length - 1; i > 0; i -= 1) {
@@ -43,7 +38,6 @@ function shuffle(items) {
   return arr
 }
 
-/** Чип пилота в пуле: перетаскивается на слот или выбирается кликом */
 function PoolChip({ entry, canAssign, onPick }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `driver-${entry.driverId}`,
@@ -72,12 +66,6 @@ function PoolChip({ entry, canAssign, onPick }) {
   )
 }
 
-/**
- * Колонка свободных пилотов — droppable-зона «Вернуть в пул».
- * Хук useDroppable обязан вызываться внутри DndContext: вне провайдера
- * dnd-kit/registration dispatch — noop, и зона просто не попадает в
- * droppableContainers (возврат перетаскиванием молча не работает).
- */
 function PoolColumn({ pool, canAssign, isOver, dragType, onPick }) {
   const { setNodeRef } = useDroppable({ id: 'pool' })
   const active = isOver && dragType === 'slot'
@@ -115,7 +103,6 @@ function PoolColumn({ pool, canAssign, isOver, dragType, onPick }) {
   )
 }
 
-/** Строка-слот (позиция 1..N): перетаскивается за «ручку» для смены мест, принимает пилота из пула */
 function SlotRow({ index, entry, canEdit, onClear, isOver, dragType }) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, isDragging, isSorting } = useSortable({
     id: `slot-${index}`,
@@ -202,20 +189,17 @@ export default function VoteBoard({ doc, user, onChanged, onBusyChange }) {
   const myVote = user ? (doc.votes || []).find((v) => Number(v.userId) === Number(user.id)) : null
 
   const [editing, setEditing] = useState(!myVote)
-  const [slots, setSlots] = useState(() => entries.map(() => null)) // index+1 = позиция
+  const [slots, setSlots] = useState(() => entries.map(() => null))
   const [busy, setBusy] = useState(false)
-  const [isDragging, setIsDragging] = useState(false) // активное перетаскивание
-  const [dragState, setDragState] = useState(null) // data.current активного элемента во время drag
-  const [overId, setOverId] = useState(null) // id текущей зоны слёта (slot-N | pool | null)
+  const [isDragging, setIsDragging] = useState(false)
+  const [dragState, setDragState] = useState(null)
+  const [overId, setOverId] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
-  // Сообщаем наверх, что доска занята (перетаскивание/сохранение) —
-  // страница не станет перезаписывать doc из live-событий в этот момент
   useEffect(() => {
     if (onBusyChange) onBusyChange(Boolean(busy || isDragging))
   }, [busy, isDragging, onBusyChange])
 
-  // Предзаполнение слотов из моего голоса / очистка
   useEffect(() => {
     const empty = entries.map(() => null)
     if (myVote) {
@@ -264,7 +248,6 @@ export default function VoteBoard({ doc, user, onChanged, onBusyChange }) {
     })
   }
 
-  /** Подсветка зоны слёта: куда попадёт пилот при отпускании */
   const handleDragStart = ({ active }) => {
     setIsDragging(true)
     setDragState({ ...active.data.current })
@@ -272,7 +255,7 @@ export default function VoteBoard({ doc, user, onChanged, onBusyChange }) {
 
   const handleDragOver = ({ over }) => {
     const id = over ? over.id : null
-    setOverId((prev) => (prev === id ? prev : id)) // без перерисовок при повторении зоны
+    setOverId((prev) => (prev === id ? prev : id))
   }
 
   const handleDragCancel = () => {
@@ -281,12 +264,6 @@ export default function VoteBoard({ doc, user, onChanged, onBusyChange }) {
     setOverId(null)
   }
 
-  /**
-   * Итог перетаскивания (@dnd-kit):
-   * - пул → слот k: пилот встаёт на место k (вытесненный возвращается в пул);
-   * - слот i → слот j: позиции меняются местами (редактирование перетаскиванием);
-   * - слот → пул: пилот убирается со слота в пул.
-   */
   const handleDragEnd = ({ active, over }) => {
     setIsDragging(false)
     setDragState(null)
@@ -325,7 +302,6 @@ export default function VoteBoard({ doc, user, onChanged, onBusyChange }) {
     }
   }
 
-  /** «Случайно» — заполняет ТОЛЬКО пустые слоты оставшимися пилотами */
   const fillEmptyRandomly = () => {
     if (!canEdit || emptySlots.length === 0) return
     const shuffledPool = shuffle(pool)
@@ -476,9 +452,6 @@ export default function VoteBoard({ doc, user, onChanged, onBusyChange }) {
         onDragCancel={handleDragCancel}
       >
         <div className="grid gap-6 lg:grid-cols-2">
-          {/* Пул свободных пилотов + явная зона возврата (BUG-05, регресс 18.11).
-              Droppable — вся колонка: пилота можно отпустить и на список, а не
-              только на узкую полоску. Хук внутри PoolColumn — строго внутри DndContext. */}
           <PoolColumn
             pool={pool}
             canAssign={canEdit && emptySlots.length > 0}
@@ -487,7 +460,6 @@ export default function VoteBoard({ doc, user, onChanged, onBusyChange }) {
             onPick={assignToFirstEmpty}
           />
 
-          {/* Слоты позиций 1..N */}
           <div>
             <h3 className="mb-2 text-sm font-bold uppercase tracking-wide text-muted dark:text-muted-dark">
               Слоты мест (1..{entries.length}) — заполнено {entries.length - emptySlots.length}/{entries.length}

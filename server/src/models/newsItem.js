@@ -47,7 +47,6 @@ module.exports = (sequelize, DataTypes) => {
     sequelize,
     modelName: 'NewsItem',
     tableName: 'news_items',
-    // Генерируемая колонка searchVector не описана в модели — её пишет Postgres
     timestamps: true,
   });
 

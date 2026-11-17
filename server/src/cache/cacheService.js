@@ -1,16 +1,8 @@
 'use strict';
 
-/**
- * Кэш-слой приложения (эпик-11).
- *
- * Основное хранилище — Redis; если он выключен или недоступен, прозрачно
- * используется in-memory Map с тем же API и TTL. Значения сериализуются в JSON.
- */
-
 const redisClient = require('./redisClient');
 const logger = require('../utils/logger');
 
-// key -> { value, expiresAt }
 const memory = new Map();
 let fallbackLogged = false;
 
@@ -96,7 +88,6 @@ async function delByPrefix(prefix) {
       for await (const key of client.scanIterator({ MATCH: `${prefix}*`, COUNT: 100 })) {
         keys.push(key);
       }
-      // UNLINK освобождает память в фоне и не блокирует Redis, в отличие от DEL.
       for (let i = 0; i < keys.length; i += 100) {
         await client.unlink(keys.slice(i, i + 100));
       }
@@ -107,10 +98,6 @@ async function delByPrefix(prefix) {
   deleteMemoryByPrefix(prefix);
 }
 
-/**
- * Вернуть значение из кэша или загрузить и сохранить его.
- * @returns {Promise<{ value: unknown, cached: boolean }>}
- */
 async function getOrSet(key, ttlMs, loader) {
   const cached = await get(key);
   if (cached !== null && cached !== undefined) {
@@ -132,7 +119,6 @@ function isEnabled() {
   return redisClient.isEnabled();
 }
 
-/** Сброс in-memory слоя (для тестов). Redis не трогаем. */
 function __reset() {
   memory.clear();
   fallbackLogged = false;

@@ -4,7 +4,6 @@ const { authenticate } = require('../middleware/authenticate');
 const { isAdmin } = require('../middleware/authorize');
 const { adminSyncLimiter } = require('../middleware/rateLimit');
 
-// Все админ-роуты защищены (эпик-09, Phase 10)
 router.use(authenticate, isAdmin);
 
 router.get('/drivers', ctrl.getDrivers);

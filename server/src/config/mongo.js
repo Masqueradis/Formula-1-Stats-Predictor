@@ -6,13 +6,8 @@ const RETRY_MS = 10_000;
 const CONNECT_TIMEOUT_MS = 5_000;
 
 let retryTimer = null;
-let closing = false; // флаг штатного закрытия — ретраи не нужны
+let closing = false;
 
-/**
- * Статус MongoDB для /api/health и middleware.
- * Деградированный режим: сервер стартует и работает без Mongo,
- * а /api/predictions отдаёт 503 (см. middleware/requireMongo).
- */
 function status() {
   return mongoose.connection.readyState === 1 ? 'up' : 'down';
 }
@@ -42,7 +37,7 @@ async function connectMongo() {
 }
 
 mongoose.connection.on('disconnected', () => {
-  if (closing) return; // штатное закрытие (disconnectMongo) — без ретраев
+  if (closing) return;
   console.warn('[mongo] disconnected — retry scheduled');
   scheduleRetry();
 });

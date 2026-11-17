@@ -5,13 +5,6 @@ import LiveIndicator from '../components/LiveIndicator'
 import { useAuth } from '../context/useAuth'
 import NavBar from './NavBar'
 
-/**
- * Эпик-13 (BUG-01/02, регресс 18.11): sticky-header на всю ширину экрана.
- * Верхний ряд: название прижато к левому краю, счётчик онлайна, тема,
- * имя пользователя и «Выйти» — к правому. Навигация перенесена во второй
- * ряд (`lg+`), чтобы пункты не наслаивались на бренд и действия.
- * До `lg` — бургер и выпадающая панель (закрытие по Esc, фону и переходу).
- */
 export default function Header({ theme, onToggleTheme }) {
   const { user, logout } = useAuth()
   const location = useLocation()
@@ -39,7 +32,6 @@ export default function Header({ theme, onToggleTheme }) {
 
   return (
     <header className="sticky top-0 z-40 border-b border-border-soft bg-card/90 backdrop-blur transition-colors dark:border-border-dark dark:bg-card-dark/90">
-      {/* Верхний ряд: бренд — левый край, действия — правый край экрана */}
       <div className="flex h-14 w-full items-center justify-between gap-2 px-3 sm:px-4 lg:px-5">
         <Link to="/" className="flex shrink-0 items-center gap-2.5" aria-label="Simply Lovely — на главную">
           <span
@@ -112,7 +104,6 @@ export default function Header({ theme, onToggleTheme }) {
         </div>
       </div>
 
-      {/* Второй ряд: навигация больше не конкурирует за место с брендом и действиями */}
       <div className="hidden border-t border-border-soft dark:border-border-dark lg:block">
         <div className="flex w-full justify-center overflow-x-auto px-4 lg:px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <NavBar />

@@ -1,10 +1,5 @@
 'use strict';
 
-/**
- * f1SyncService — юнит-тесты с моками Jolpica-клиента и in-memory моделями
- * (tests/helpers/fakeModels.js). Без сети и без БД.
- */
-
 jest.mock('../src/models', () => {
   const { createFakeModel } = jest.requireActual('./helpers/fakeModels');
   return {
@@ -13,7 +8,6 @@ jest.mock('../src/models', () => {
     Race: createFakeModel(),
     RaceResult: createFakeModel(),
     SeasonTeam: createFakeModel(),
-    // Сверка состава после syncSeason пишет isReserve в транзакции.
     sequelize: { transaction: async (fn) => fn() },
   };
 });
@@ -59,7 +53,6 @@ const CONSTRUCTORS = payload({ ConstructorTable: { Constructors: [ALPHA, BETA] }
 const DRIVERS = payload({ DriverTable: { Drivers: [
   SPEEDY,
   CRUISE,
-  // тест-пилот без номера/кода — в ростер не попадает
   { driverId: 'rookie', givenName: 'Rita', familyName: 'Rookie' },
 ] } });
 
@@ -74,7 +67,6 @@ const SPRINT_CALENDAR = payload({ RaceTable: { Races: [{ round: '1' }] } });
 const RESULTS = payload({ RaceTable: { Races: [{ Results: [
   { position: '1', points: '25', grid: '1', FastestLap: { rank: '1' }, Driver: SPEEDY, Constructor: ALPHA },
   { position: '2', points: '18', grid: '2', Driver: CRUISE, Constructor: BETA },
-  // место > 10 и 0 очков — строка пропускается
   { position: '15', points: '0', grid: '15', Driver: CRUISE, Constructor: BETA },
 ] }] } });
 
@@ -117,24 +109,19 @@ describe('f1SyncService (мок Jolpica + in-memory модели)', () => {
     expect(jolpica.getJson).toHaveBeenCalledWith(`/${SEASON}/1/results/?limit=100`);
 
     expect(Team.rows).toHaveLength(2);
-    // Эпик-10: исторические пилоты без code/number тоже попадают в БД
     expect(Driver.rows).toHaveLength(3);
     expect(Race.rows).toHaveLength(2);
 
-    // координаты трассы приведены к числам
     const past = Race.rows.find((r) => r.round === 1);
     expect(past.trackLatitude).toBe(10.5);
     expect(past.trackLongitude).toBe(20.25);
     expect(past.country).toBe('Testland');
-    // прошедшая гонка сразу finished
     expect(past.status).toBe('finished');
 
     const future = Race.rows.find((r) => r.round === 2);
     expect(future.status).toBe('scheduled');
-    // будущая гонка: результаты не запрашивались
     expect(jolpica.getJson).not.toHaveBeenCalledWith(`/${SEASON}/2/results/?limit=100`);
 
-    // Результаты: полная классификация (3 строки гонки, включая 15-е место) + спринт
     expect(RaceResult.rows).toHaveLength(4);
     expect(RaceResult.rows.filter((r) => r.sessionType === 'sprint')).toHaveLength(1);
     const win = RaceResult.rows.find((r) => r.position === 1 && r.sessionType === 'race');
@@ -145,11 +132,9 @@ describe('f1SyncService (мок Jolpica + in-memory модели)', () => {
     expect(tail).toBeTruthy();
     expect(tail.points).toBe(0);
 
-    // Подиумы исторического сезона не перезаписываются (защита текущего сезона)
     const speedy = Driver.rows.find((d) => d.externalId === 'speedy');
     expect(speedy.podiums).toBe(0);
 
-    // seasonTeams: связки из результатов и стендингов, без дублей
     expect(SeasonTeam.rows).toHaveLength(2);
     expect(SeasonTeam.rows.every((r) => r.season === SEASON)).toBe(true);
 
@@ -193,7 +178,6 @@ describe('f1SyncService (мок Jolpica + in-memory модели)', () => {
 
     expect(summary.errors).toHaveLength(1);
     expect(summary.errors[0]).toMatch(/^results 2020\/1: boom/);
-    // остальные этапы и команды при этом обработаны; continue пропускает и sprint-запрос
     expect(summary.teams).toBe(2);
     expect(summary.races).toBe(2);
     expect(RaceResult.rows).toHaveLength(0);

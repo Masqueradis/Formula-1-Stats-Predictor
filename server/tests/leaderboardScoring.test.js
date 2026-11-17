@@ -1,14 +1,7 @@
 'use strict';
 
-/**
- * Юнит-тесты начисления баллов (UC-2) — чистая функция scoreVote leaderboardService.
- * Правило: точное место +3; предсказан ТОП-3 (≤3) и реально финишировал в ТОП-3 (≤3)
- * с другим местом +1; не финишировал / нет результата → 0. Одинаково для full и top3.
- */
-
 const { scoreVote, RULES } = require('../src/services/leaderboardService');
 
-// Фактический финиш: пилот 1 — 1-й, пилот 2 — 2-й, пилот 3 — 3-й, пилот 4 — 4-й
 const RESULTS = new Map([[1, 1], [2, 2], [3, 3], [4, 4]]);
 
 describe('RULES', () => {
@@ -25,7 +18,6 @@ describe('scoreVote — точные совпадения', () => {
 
   test('одно точное место +3, ещё одно в ТОП-3 с другим местом +1 → 4', () => {
     const vote = { picks: [{ driverId: 1, position: 1 }, { driverId: 4, position: 2 }, { driverId: 2, position: 3 }] };
-    // 1-й: точно (+3); 4-й: предсказан 2-м, финиш 4-й (вне ТОП-3) → 0; 2-й: предсказан 3-м, финиш 2-й (+1)
     expect(scoreVote(vote, RESULTS)).toEqual({ score: 4, exactHits: 1, podiumHits: 1 });
   });
 });
@@ -71,7 +63,6 @@ describe('scoreVote — симметрия full и top3', () => {
     const full = scoreVote({ kind: 'full', picks }, RESULTS);
     const top3 = scoreVote({ kind: 'top3', picks }, RESULTS);
     expect(full).toEqual(top3);
-    // 1-й точно (+3), 2-й предсказан 3-м при факте 2 (+1), 3-й предсказан 2-м при факте 3 (+1)
     expect(full).toEqual({ score: 5, exactHits: 1, podiumHits: 2 });
   });
 });

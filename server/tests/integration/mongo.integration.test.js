@@ -1,16 +1,5 @@
 'use strict';
 
-/**
- * Интеграционные тесты MongoDB-слоя (predictionRepository + leaderboardService.recalculate)
- * против реальной MongoDB/PostgreSQL запущенного стека.
- *
- * Запуск: INTEGRATION=1 npm run test:mongo
- *
- * Сценарий: вставка тестового документа гонки → атомарные операции с массивами
- * ($push/$set с "$"/$pull) → агрегация народного рейтинга → кросс-БД скоринг
- * (баллы из race_results) → чистка (документ удаляется в afterEach).
- */
-
 const mongoose = require('mongoose');
 
 const RUN = process.env.INTEGRATION === '1';
@@ -22,16 +11,13 @@ let raceRepository;
 let raceResultRepository;
 
 const TEST_RACE_ID = 'jest-it-000';
-let raceForScoring = null; // завершённая гонка из PG (для scoreVote)
+let raceForScoring = null;
 
 jest.setTimeout(60000);
 
 maybe('MongoDB repository (integration)', () => {
   beforeAll(async () => {
     require('../../src/config/env');
-    // В Jest ломается динамический import('os') драйвера mongodb@7 (метаданные
-    // handshake пустые → MongoDB 8 отвечает "Missing required sub-document 'driver'").
-    // Передаём os-адаптер явно — тот же escape hatch, что и в runtimeAdapters драйвера.
     await mongoose.connect(process.env.MONGO_URI, {
       runtimeAdapters: { os: require('os') },
     });
@@ -40,7 +26,6 @@ maybe('MongoDB repository (integration)', () => {
     raceRepository = require('../../src/repositories/raceRepository');
     raceResultRepository = require('../../src/repositories/raceResultRepository');
 
-    // ближайшая завершённая гонка с результатами (для кросс-БД теста)
     const races = await raceRepository.findAll({ where: { status: 'finished' } });
     for (const race of races) {
       const results = await raceResultRepository.findAll({ where: { raceId: race.id, sessionType: 'race' } });
@@ -54,7 +39,6 @@ maybe('MongoDB repository (integration)', () => {
   afterAll(async () => {
     await predictionRepository.removeByRaceId(TEST_RACE_ID);
     if (mongoose.connection.readyState !== 0) await mongoose.disconnect();
-    // закрываем пул PostgreSQL — иначе Jest зависает на открытом хэндле
     await require('../../src/models').sequelize.close();
   });
 
@@ -95,7 +79,7 @@ maybe('MongoDB repository (integration)', () => {
     expect(updated.votes).toHaveLength(1);
 
     const duplicate = await predictionRepository.addVote(TEST_RACE_ID, vote);
-    expect(duplicate).toBeNull(); // уникальность (userId, kind) — US-5
+    expect(duplicate).toBeNull();
   });
 
   test('addVote: full и top3 одного пользователя сосуществуют', async () => {
@@ -118,7 +102,7 @@ maybe('MongoDB repository (integration)', () => {
     const top3 = updated.votes.find((v) => v.kind === 'top3');
     const full = updated.votes.find((v) => v.kind === 'full');
     expect(top3.picks[0].position).toBe(1);
-    expect(full.picks[0].position).toBe(2); // full не тронут
+    expect(full.picks[0].position).toBe(2);
   });
 
   test('removeVote: с kind удаляет только указанный тип, без kind — все голоса юзера', async () => {
@@ -135,7 +119,6 @@ maybe('MongoDB repository (integration)', () => {
 
   test('aggregateStats: народный рейтинг учитывает только kind=full', async () => {
     await createTestDoc();
-    // два full-голоса + один top3 (не должен попасть в народный рейтинг)
     await predictionRepository.addVote(TEST_RACE_ID, {
       userId: 1, username: 'a', kind: 'full',
       picks: [{ driverId: 1, position: 1 }, { driverId: 2, position: 2 }],
@@ -150,8 +133,7 @@ maybe('MongoDB repository (integration)', () => {
     });
 
     const stats = await predictionRepository.aggregateStats({ raceId: TEST_RACE_ID });
-    const byDriver = new Map(stats.map((s) => [s._id, s])); // агрегат группирует по _id = driverId
-    // driverId 1: угадан 1-м дважды (2 full) — top3-голос игнорирован (иначе votesCount был бы 3)
+    const byDriver = new Map(stats.map((s) => [s._id, s]));
     expect(byDriver.get(1).votesCount).toBe(2);
     expect(byDriver.get(1).bestPosition).toBe(1);
     expect(byDriver.get(1).avgPosition).toBe(1);
@@ -174,8 +156,8 @@ maybe('MongoDB repository (integration)', () => {
     expect(full.score).toBe(7);
     expect(full.exactHits).toBe(2);
     expect(full.podiumHits).toBe(1);
-    expect(top3.score).toBeNull(); // баллы НЕ утекли в соседний top3-голос (баг $ без arrayFilters)
-    expect(other.score).toBeNull(); // чужой голос не тронут
+    expect(top3.score).toBeNull();
+    expect(other.score).toBeNull();
   });
 
   test('recalculate (кросс-БД): завершённая гонка получает баллы, повтор идемпотентен', async () => {
@@ -189,7 +171,6 @@ maybe('MongoDB repository (integration)', () => {
       .sort((a, b) => a.position - b.position);
     const docRaceId = String(race.externalId || race.id);
 
-    // голос «знающего»: все места угаданы точно → 3 × точных совпадений
     const picks = byPos.map((r) => ({ driverId: r.driverId, position: Number(r.position) }));
     await predictionRepository.create({
       raceId: docRaceId,
@@ -207,24 +188,22 @@ maybe('MongoDB repository (integration)', () => {
 
       const doc = await predictionRepository.findByRaceId(docRaceId);
       const vote = doc.votes.find((v) => v.userId === 999999);
-      expect(vote.score).toBe(picks.length * 3); // все места точно
+      expect(vote.score).toBe(picks.length * 3);
 
       const second = await leaderboardService.recalculate();
-      expect(second.votes).toBe(0); // идемпотентность: баллы не изменились
+      expect(second.votes).toBe(0);
 
-      // сырая агрегация без фильтра по PG-пользователям (999999 не существует в users)
       const raw = await predictionRepository.aggregateLeaderboard(200);
       const row = raw.find((r) => r._id === 999999);
       expect(row).toBeDefined();
       expect(row.points).toBe(picks.length * 3);
 
-      // публичный API сохраняет контракт { rules, total, users[] }
       const board = await leaderboardService.getLeaderboard(200);
       expect(board.rules).toEqual({ exact: 3, podium: 1 });
       expect(board.total).toBeGreaterThan(0);
       expect(Array.isArray(board.users)).toBe(true);
     } finally {
-      await predictionRepository.removeByRaceId(docRaceId); // чистка за собой
+      await predictionRepository.removeByRaceId(docRaceId);
     }
   });
 });

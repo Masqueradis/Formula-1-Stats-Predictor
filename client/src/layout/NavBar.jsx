@@ -22,10 +22,6 @@ const ACTIVE = 'bg-primary text-white dark:bg-accent'
 const IDLE =
   'text-muted hover:bg-background hover:text-foreground dark:text-muted-dark dark:hover:bg-background-dark dark:hover:text-foreground-dark'
 
-/**
- * Эпик-13 (BUG-01/02): на `lg+` — один ряд без переносов (короткие подписи
- * до `xl`), на мобиле — вертикальный список внутри burger-drawer.
- */
 export default function NavBar({ variant = 'desktop', onNavigate }) {
   const { user } = useAuth()
 

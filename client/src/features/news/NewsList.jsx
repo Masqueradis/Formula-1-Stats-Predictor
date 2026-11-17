@@ -29,7 +29,6 @@ export default function NewsList() {
   const lang = searchParams.get('lang') || ''
   const driverId = searchParams.get('driverId') || ''
   const teamId = searchParams.get('teamId') || ''
-  // Архив в Postgres (эпик-09, P4): режим + полнотекстовый поиск/даты
   const mode = searchParams.get('mode') === 'archive' ? 'archive' : 'live'
   const q = searchParams.get('q') || ''
   const from = searchParams.get('from') || ''
@@ -101,7 +100,6 @@ export default function NewsList() {
 
   const resetFilters = () => setSearchParams(new URLSearchParams())
 
-  // Переключение «Лента ↔ Архив» (архив — поиск по сохранённым в Postgres новостям)
   const switchMode = (next) => {
     const params = new URLSearchParams(searchParams)
     if (next === 'archive') params.set('mode', 'archive')

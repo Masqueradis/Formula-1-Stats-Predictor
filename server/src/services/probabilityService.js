@@ -2,29 +2,6 @@
 
 const probabilityRepository = require('../repositories/probabilityRepository');
 
-/**
- * Phase 4 / US-4 — алгоритм прогнозирования (Softmax).
- *
- * Базовый рейтинг пилота на ближайший Гран-при:
- *   S_i = w1·P_qual + w2·F_driver + w3·F_team + w4·H_track
- * все компоненты нормированы в [0; 1], затем
- *   P(i) = e^{S_i} / Σ e^{S_j}   (умножается на 100 → проценты)
- *
- * Компоненты:
- * - P_qual   — стартовая позиция. Квалификация ближайшей гонки ещё не проводилась,
- *              поэтому используется средняя стартовая позиция пилота в сезоне (grid).
- * - F_driver — текущая форма: средний финиш по последним 5 гонкам сезона (sessionType=race).
- * - F_team   — форма команды: очки команды в сезоне / максимум очков среди команд.
- * - H_track  — историческая успешность на автодроме гонки (все сезоны).
- *
- * Эпик-10: в начале сезона текущих данных мало, поэтому P_qual/F_driver/F_team
- * подмешивают прошлый сезон (blendAverage). Вес текущих данных растёт с числом
- * гонок: после FORM_RACES гонок прошлый сезон перестаёт влиять.
- *
- * Перевод позиции p в оценку: score = 1 - (p-1)/20 (обрезается в [0; 1]).
- * Если данных нет (сезон не начался / дебют на трассе) — нейтральный приор 0.5.
- */
-
 const WEIGHTS = Object.freeze({
   P_qual: 0.35,
   F_driver: 0.3,
@@ -33,8 +10,8 @@ const WEIGHTS = Object.freeze({
 });
 
 const NEUTRAL = 0.5;
-const POSITION_SCALE = 20; // шкала «поле ~20 пилотов»
-const FORM_RACES = 5; // последние N гонок для F_driver
+const POSITION_SCALE = 20;
+const FORM_RACES = 5;
 
 function httpError(status, message) {
   const err = new Error(message);
@@ -53,11 +30,6 @@ function average(values) {
   return values.reduce((sum, v) => sum + v, 0) / values.length;
 }
 
-/**
- * Взвешенное смешивание текущего и прошлого сезона.
- * currentWeight ∈ [0; 1] — доля текущих данных (0 = только прошлый сезон).
- * Возвращает { value, source }, где source: current | previous | blended | neutral.
- */
 function blendAverage(current, previous, currentWeight = 1) {
   const hasCurrent = Number.isFinite(current);
   const hasPrevious = Number.isFinite(previous);
@@ -90,7 +62,6 @@ function round(value, digits) {
   return Math.round(value * factor) / factor;
 }
 
-/** Softmax с вычитом максимума (эквивалентно формуле, защищает от переполнения). */
 function softmax(scores) {
   const max = Math.max(...scores);
   const exps = scores.map((s) => Math.exp(s - max));
@@ -98,11 +69,6 @@ function softmax(scores) {
   return exps.map((e) => (e / sum) * 100);
 }
 
-/**
- * Эпик-13 (BUG-13): округление процентов методом наибольшего остатка.
- * Простое `round(p, 2)` даёт сумму 100,01/100,02 %, поэтому сначала берём
- * floor до сотых, затем распределяем оставшиеся сотые по убыванию дробной части.
- */
 function distributePercentages(values, digits = 2) {
   const factor = 10 ** digits;
   const target = 100 * factor;
@@ -120,7 +86,6 @@ function distributePercentages(values, digits = 2) {
     remainder -= 1;
     cursor += 1;
   }
-  // Защита от накопленной ошибки float: если floor дал больше 100 %, снимаем лишние.
   while (remainder < 0) {
     const richest = cents.indexOf(Math.max(...cents));
     if (richest === -1 || cents[richest] <= 0) break;
@@ -160,11 +125,6 @@ function normalizeTeamScore(points, max) {
   return Math.max(0, Math.min(1, points / max));
 }
 
-/**
- * Эпик-13 (BUG-08, регресс 17.11): авторитетный состав — участники последней
- * завершённой гонки сезона (те же правила, что и в народном прогнозе).
- * Возвращает Map<driverId, teamId> или null, если результатов ещё нет.
- */
 function lastRaceGrid(seasonResults) {
   const rows = (seasonResults || []).filter(
     (r) => (r.sessionType || 'race') === 'race' && r.race,
@@ -202,7 +162,6 @@ async function getNextProbabilities() {
     probabilityRepository.findCircuitResults(race.circuit),
   ]);
 
-  // Индексы результатов
   const seasonByDriver = groupByDriver(seasonResults);
   const previousByDriver = groupByDriver(previousResults);
 
@@ -216,11 +175,6 @@ async function getNextProbabilities() {
 
   const circuitByDriver = groupByDriver(circuitResults);
 
-  // BUG-08 (регресс 17.11): у пилота может быть несколько строк season_teams
-  // (Lawson: Racing Bulls + Red Bull), а резервисты (Ocon/Hirakawa) остаются
-  // активными после рассинхрона сидера. Авторитетный источник — сетка последней
-  // завершённой гонки: не участвовавших исключаем, дубли resolved по teamId.
-  // До первой гонки сетки нет — fallback на боевую строку с меньшим id.
   const grid = lastRaceGrid(seasonResults);
   const sortedRoster = Array.isArray(roster)
     ? [...roster].sort((a, b) => {
@@ -256,7 +210,6 @@ async function getNextProbabilities() {
       (r) => (r.sessionType || 'race') === 'race',
     );
 
-    // P_qual: средняя стартовая позиция сезона (+ прошлый сезон при нехватке данных)
     const grids = raceRows.map((r) => positionScore(r.grid)).filter((v) => v !== null);
     const previousGrids = previousRows.map((r) => positionScore(r.grid)).filter((v) => v !== null);
     const pQual = blendAverage(
@@ -265,7 +218,6 @@ async function getNextProbabilities() {
       grids.length / FORM_RACES,
     );
 
-    // F_driver: последние FORM_RACES гонок текущего и прошлого сезона
     const recent = [...raceRows]
       .filter((r) => positionScore(r.position) !== null)
       .sort((a, b) => raceOrderKey(b).localeCompare(raceOrderKey(a)))
@@ -282,7 +234,6 @@ async function getNextProbabilities() {
       recent.length / FORM_RACES,
     );
 
-    // F_team: доля очков команды в сезоне (+ прошлый сезон как fallback)
     const teamCurrent = teamPointsCurrent.has(team.id)
       ? normalizeTeamScore(teamPointsCurrent.get(team.id), maxTeamPoints)
       : null;
@@ -295,7 +246,6 @@ async function getNextProbabilities() {
       currentRaceCount / FORM_RACES,
     );
 
-    // H_track: финиши на этом автодроме (все сезоны, включая историю)
     const history = (circuitByDriver.get(driver.id) || [])
       .filter((r) => (r.sessionType || 'race') === 'race')
       .map((r) => positionScore(r.position))
@@ -326,7 +276,7 @@ async function getNextProbabilities() {
         H_track: round(features.H_track, 3),
       },
       score: round(score, 4),
-      probability: 0, // заполняется после softmax
+      probability: 0,
     });
   }
 
@@ -359,20 +309,17 @@ async function getNextProbabilities() {
       previousSeason,
       formWindow: FORM_RACES,
       usesPreviousSeason,
-      // BUG-08: сколько пилотов пришло из сетки последней гонки (0 — гонок ещё нет)
       gridFromLastRace: grid ? grid.size : 0,
     },
     drivers,
   };
 }
 
-// Утилита среднего без нейтрального приора: null, если данных нет.
 function averageOrNull(values) {
   if (values.length === 0) return null;
   return values.reduce((sum, v) => sum + v, 0) / values.length;
 }
 
-// softmax/positionScore/average/blendAverage — чистые функции, экспортируются для unit-тестов.
 module.exports = {
   getNextProbabilities,
   WEIGHTS,

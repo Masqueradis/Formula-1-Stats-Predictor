@@ -1,9 +1,5 @@
 'use strict';
 
-/**
- * cacheService — ветки с реальным (fake) Redis-клиентом и fallback при ошибках.
- */
-
 jest.mock('../src/cache/redisClient', () => ({
   getClient: jest.fn(),
   ping: jest.fn(),

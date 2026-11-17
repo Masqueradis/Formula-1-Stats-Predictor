@@ -1,20 +1,5 @@
 'use strict';
 
-/**
- * Эпик-13 (BUG-08), вариант A «Последняя гонка» — сверка `season_teams`.
- *
- * Помечает `isReserve` по фактическому составу последней завершённой гонки:
- *   - участник последней гонки → isReserve=false;
- *   - остальные (резервисты, тест-пилоты, замены вне гонки) → true;
- *   - дубль пилота в двух командах: боевым остаётся только тот, за который
- *     он выступал в последней гонке, остальные строки → резерв.
- * Если завершённых гонок нет — fallback на заявку: не более двух боевых
- * пилотов на команду, остальные → резерв.
- *
- * Используется и CLI (`npm run reconcile:vote-roster`), и автоматически после
- * `syncSeason`, чтобы замены пилотов не создавали дубли в прогнозах.
- */
-
 const { sequelize, SeasonTeam, Race, RaceResult } = require('../models');
 
 function label(row) {
@@ -25,10 +10,6 @@ function label(row) {
   return `${driver} (${team})`;
 }
 
-/**
- * План: Map<seasonTeamId, { isReserve, reason }>.
- * Возвращает также предупреждения (участник гонки без строки season_teams).
- */
 async function buildPlan(season) {
   const rows = await SeasonTeam.findAll({
     where: { season },
@@ -50,7 +31,6 @@ async function buildPlan(season) {
       order: [['position', 'ASC']],
     });
 
-    // driverId → teamId последней гонки (первое вхождение)
     const participantTeam = new Map();
     for (const result of results) {
       if (!participantTeam.has(Number(result.driverId))) {
@@ -102,7 +82,6 @@ async function buildPlan(season) {
       }
     }
   } else {
-    // Fallback: до первой завершённой гонки — по два боевых пилота на команду.
     const perTeam = new Map();
     const seenDriver = new Set();
     for (const row of rows) {
@@ -126,7 +105,6 @@ async function buildPlan(season) {
   return { rows, plan, warnings, lastRace };
 }
 
-/** Список расхождений: [{ row, target, label }]. */
 function collectChanges(rows, plan) {
   const changes = [];
   for (const row of rows) {
@@ -139,10 +117,6 @@ function collectChanges(rows, plan) {
   return changes;
 }
 
-/**
- * Сверка состава. По умолчанию dry-run; запись — с `{ apply: true }`.
- * Возвращает `{ season, rows, changes, warnings, lastRace, applied }`.
- */
 async function reconcileVoteRoster(season, options = {}) {
   const { rows, plan, warnings, lastRace } = await buildPlan(season);
   const changes = collectChanges(rows, plan);

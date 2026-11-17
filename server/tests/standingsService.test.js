@@ -1,11 +1,5 @@
 'use strict';
 
-/**
- * BUG-08 (регресс 17.11): в личном зачёте команда пилота берётся из боевой
- * строки season_teams (isReserve=false, затем меньший id), а не из последней
- * по id — иначе дубль Lawson в Red Bull перекрывал Racing Bulls.
- */
-
 jest.mock('../src/models');
 
 const { SeasonTeam, RaceResult } = require('../src/models');

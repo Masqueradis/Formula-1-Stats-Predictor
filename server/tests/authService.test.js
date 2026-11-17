@@ -1,9 +1,5 @@
 'use strict';
 
-/**
- * Эпик-13 (BUG-03/BUG-17): сообщения входа и регистрации — на русском.
- */
-
 jest.mock('../src/repositories/userRepository');
 jest.mock('../src/services/emailService', () => ({
   sendVerificationEmail: jest.fn(),

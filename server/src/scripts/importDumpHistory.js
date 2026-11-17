@@ -1,23 +1,5 @@
 'use strict';
 
-/**
- * Эпик-12: резервный бэкфилл истории из database dump Jolpica.
- *
- * Нужен, когда API Jolpica отдаёт 429 (лимит 500 запросов/час): дамп содержит
- * всю историю и скачивается одним запросом с отдельного endpoint'а.
- *
- * Подготовка:
- *   curl -sSL -o /tmp/jolpica-delayed.zip 'https://api.jolpi.ca/data/dumps/download/delayed/?dump_type=csv'
- *   mkdir -p /tmp/opencode/jolpica-csv && unzip -o /tmp/jolpica-delayed.zip -d /tmp/opencode/jolpica-csv
- *
- * Запуск (идемпотентно, можно повторять):
- *   JWT_SECRET=<any> NODE_ENV=production node --env-file=../.env.deploy \
- *     src/scripts/importDumpHistory.js /tmp/opencode/jolpica-csv 2021 2025
- *
- * Без аргументов: каталог = /tmp/opencode/jolpica-csv, сезоны = 2021..2025.
- * ВАЖНО: не трогает текущий сезон (2026) — он синхронизируется через API.
- */
-
 require('../config/env');
 
 const fs = require('fs');
@@ -43,7 +25,6 @@ function text(value, max) {
   return max ? s.slice(0, max) : s;
 }
 
-/** Минимальный CSV-парсер: поддерживает кавычки, экранированные "" и CRLF. */
 function parseCsv(content) {
   const rows = [];
   let row = [];
@@ -151,7 +132,6 @@ async function run() {
   const teamDriverIds = new Set(
     [...roundEntryIds].map((id) => roundEntries.get(id)?.team_driver_id).filter(Boolean),
   );
-  // Полный состав сезона (включая пилотов без результатов) — для season_teams.
   for (const td of teamDrivers.values()) {
     if (seasonYear.has(td.season_id)) teamDriverIds.add(td.id);
   }
@@ -215,14 +195,12 @@ async function run() {
     return driver;
   };
 
-  // 1. Команды и пилоты, участвующие в сезонах/результатах.
   for (const td of teamDrivers.values()) {
     if (!teamDriverIds.has(td.id)) continue;
     if (teams.get(td.team_id)?.reference) await ensureTeam(teams.get(td.team_id).reference);
     if (drivers.get(td.driver_id)?.reference) await ensureDriver(drivers.get(td.driver_id).reference);
   }
 
-  // 2. Гонки.
   const raceById = new Map();
   for (const round of roundsInScope) {
     const season = seasonYear.get(round.season_id);
@@ -249,7 +227,6 @@ async function run() {
     raceById.set(round.id, race);
   }
 
-  // 3. Состав сезона (season_teams).
   let seasonTeams = 0;
   for (const tdId of teamDriverIds) {
     const td = teamDrivers.get(tdId);
@@ -269,7 +246,6 @@ async function run() {
     seasonTeams += 1;
   }
 
-  // 4. Результаты гонок и спринтов: атомарная замена по (race, sessionType).
   const entriesBySession = new Map();
   for (const entry of entriesInScope) {
     if (!entriesBySession.has(entry.session_id)) entriesBySession.set(entry.session_id, []);

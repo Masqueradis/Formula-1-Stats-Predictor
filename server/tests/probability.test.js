@@ -1,10 +1,5 @@
 'use strict';
 
-/**
- * Юнит-тесты алгоритма Softmax (US-4, Phase 4) — чистые функции probabilityService.
- * Формула: S_i = w1·P_qual + w2·F_driver + w3·F_team + w4·H_track, P(i) = e^{S_i}/Σe^{S_j}.
- */
-
 const {
   softmax,
   distributePercentages,
@@ -76,7 +71,6 @@ describe('distributePercentages (BUG-13: ровно 100,00 %)', () => {
   });
 
   test('распределение по наибольшему остатку, а не по порядку', () => {
-    // 33.333… × 3: floor = 33.33 × 3 = 99.99, одна сотая уходит первому.
     const rounded = distributePercentages([100 / 3, 100 / 3, 100 / 3]);
     expect(rounded).toEqual([33.34, 33.33, 33.33]);
   });

@@ -1,26 +1,19 @@
-# Зависимости
 node_modules/
 
-# Окружение и секреты
 .env
 .env.*
 !.env.example
 
-# Контекст ИИ (не для репозитория)
 .opencode/
 AGENTS.md
 design/guidelines.md
 
-# Сборки и логи
 dist/
 build/
 *.log
 
-# Кэш внешних данных (новости)
 .cache/
 
-# OS
 .DS_Store
 
-# Coverage (jest)
 coverage/

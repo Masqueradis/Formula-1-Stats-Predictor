@@ -1,9 +1,5 @@
 'use strict';
 
-/**
- * presenceStore — unit-тесты fallback-режима (Redis в тестах отключён).
- */
-
 const presenceStore = require('../src/realtime/presenceStore');
 const redisClient = require('../src/cache/redisClient');
 
@@ -72,7 +68,6 @@ describe('presenceStore (in-memory fallback)', () => {
     await presenceStore.register('s1', { userId: 1, raceId: '2026-5' });
     await presenceStore.unregister('s1');
 
-    // эмулирует heartbeat/leave, пришедший после disconnect
     await presenceStore.update('s1', { raceId: null });
 
     const summary = await presenceStore.summary();
@@ -89,7 +84,6 @@ describe('presenceStore с Redis (операции сериализованы п
     hash = new Map();
     return {
       hSet: jest.fn(async (_key, field, raw) => {
-        // небольшая задержка делает гонку update/unregister воспроизводимой
         await Promise.resolve();
         hash.set(field, raw);
         return 1;

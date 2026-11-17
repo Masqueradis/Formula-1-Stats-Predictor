@@ -1,9 +1,5 @@
 'use strict';
 
-/**
- * Эпик-13 (BUG-20): защита query-параметров.
- */
-
 const { cleanSearch, clampInt, cleanId, SEARCH_MAX_LENGTH } = require('../src/utils/queryParams');
 
 describe('cleanSearch', () => {

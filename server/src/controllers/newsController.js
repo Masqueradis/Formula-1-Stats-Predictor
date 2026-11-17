@@ -21,7 +21,6 @@ async function getNews(req, res) {
   }
 }
 
-/** Архив новостей в Postgres: полнотекстовый поиск + фильтр по датам (эпик-09, P4) */
 async function getArchive(req, res) {
   try {
     const { q, from, to, page, limit } = req.query;

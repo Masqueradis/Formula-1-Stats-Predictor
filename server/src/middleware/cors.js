@@ -21,6 +21,5 @@ function cors(req, res, next) {
   next();
 }
 
-// Используется и Express-middleware, и Socket.IO (см. src/realtime/io.js)
 module.exports = cors;
 module.exports.ALLOWED_ORIGINS = ALLOWED_ORIGINS;

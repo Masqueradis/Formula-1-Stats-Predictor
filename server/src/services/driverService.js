@@ -7,7 +7,6 @@ const { invalidateApiCache } = require('../cache/invalidate');
 
 const CURRENT_SEASON_DEFAULT = 2026;
 
-/** Эпик-13 (BUG-07): сериализация с признаком участия в текущем сезоне. */
 async function clean(record) {
   const season = await currentSeason();
   const options = { currentSeason: season };
@@ -58,7 +57,6 @@ async function getAll({ search, teamId, includeInactive } = {}) {
 async function getById(rawId) {
   const id = parseId(rawId);
   if (id === null) return { error: 'Invalid id' };
-  // includeInactive: архивные пилоты открываются из исторических Гран-при
   const record = await driverRepository.findByIdWithDetails(id, { includeInactive: true });
   if (!record) return { error: 'Пилот не найден', status: 404 };
   return clean(record);

@@ -28,7 +28,6 @@ function toItem(row) {
   };
 }
 
-/** Свежая лента RSS → upsert по link (идемпотентно; архив не растёт дублями) */
 async function upsertMany(items) {
   const rows = (items || [])
     .filter((item) => item?.link && item?.title)
@@ -50,10 +49,6 @@ async function upsertMany(items) {
   return rows.length;
 }
 
-/**
- * Поиск по архиву: полнотекстовый tsvector @@ plainto_tsquery('simple', q)
- * + ILIKE-фолбэк на подстроку (поиск по части слова/точному обороту).
- */
 async function search({ q, from, to, page = 1, limit = DEFAULT_LIMIT } = {}) {
   const where = {};
 

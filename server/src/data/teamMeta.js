@@ -1,6 +1,5 @@
 'use strict';
 
-// Локальные метаданные команд: Jolpica не отдаёт цвета, руководителей и т.д.
 const TEAM_META = {
   mclaren: {
     name: 'McLaren',

@@ -15,10 +15,6 @@ async function getAll({ season } = {}) {
   return races.map(sanitizeRace);
 }
 
-/**
- * Эпик-10: `?season=current` — максимальный сезон в БД, `?season=YYYY` — конкретный.
- * Без параметра возвращается всё (для обратной совместимости), но UI так не делает.
- */
 function normalizeSeasonFilter(raw) {
   if (raw === undefined || raw === null || raw === '') return null;
   if (String(raw).toLowerCase() === 'current') return 'current';
@@ -49,10 +45,6 @@ function httpError(status, message) {
   return err;
 }
 
-/**
- * US-7 (эпик-09): нормализация ссылки на трансляцию.
- * Пустое значение → null (ссылки нет), иначе — валидный http(s)-URL ≤500 символов.
- */
 function normalizeBroadcastUrl(value) {
   const trimmed = String(value ?? '').trim();
   if (!trimmed) return null;
@@ -65,11 +57,6 @@ function normalizeBroadcastUrl(value) {
   return trimmed;
 }
 
-/**
- * Эпик-13 (BUG-04): формы админки присылают пустые строки для необязательных
- * полей. Postgres на `date = ''`/`DECIMAL = ''` падал с 400 и английским текстом,
- * поэтому пустое превращаем в NULL, а координаты приводим к числу.
- */
 function normalizeOptionalDate(value) {
   const trimmed = String(value ?? '').trim();
   return trimmed || null;
@@ -118,11 +105,6 @@ async function create(data) {
   return baseService.create(normalizeRacePayload(data));
 }
 
-/**
- * Эпик-13 (BUG-06): CRUD гонки в админке должен рассылать `race:status`,
- * иначе `/vote` в других вкладках не узнаёт о смене статуса до перезагрузки.
- * Ключ гонки — как в MongoDB: externalId, иначе числовой id.
- */
 function raceKeyOf(race) {
   return String(race.externalId || race.id);
 }
@@ -142,11 +124,6 @@ async function update(rawId, data) {
   return updated;
 }
 
-/**
- * Удаление гонки с каскадом в MongoDB (решение В3 эпика-06):
- * меж-БД-каскада не существует, поэтому после успешного удаления строки
- * в PostgreSQL удаляем и документ гонки в MongoDB (best-effort).
- */
 async function remove(rawId) {
   const id = parseId(rawId);
   const race = id !== null ? await raceRepository.findById(id) : null;

@@ -57,9 +57,7 @@ async function register({ username, email, password }) {
   });
 
   const sent = await deliverEmail(sendVerificationEmail, user.email, token);
-  // Исключение только для автотестов: без MailHog они всё равно создают пользователя.
   if (!sent.ok && process.env.NODE_ENV !== 'test') {
-    // Не оставляем аккаунт, для которого пользователь никогда не получит ссылку.
     await userRepository.remove(user.id);
     logger.error('auth.register.mail_failed', { userId: user.id, reason: sent.error });
     return {
@@ -90,7 +88,6 @@ function mailFailureMessage(sent, fallback) {
   return fallback;
 }
 
-/** Отправка письма не должна ронять регистрацию: причина возвращается вызывающему. */
 async function deliverEmail(send, ...args) {
   try {
     return (await send(...args)) || { ok: false, error: 'Почтовый сервис не вернул результат' };
@@ -122,12 +119,10 @@ async function verify(rawToken) {
   const sent = await deliverEmail(sendWelcomeEmail, user.email, user.username);
   if (!sent.ok) logger.warn('auth.verify.welcome_mail_failed', { userId: user.id, error: sent.error });
 
-  // sequelize обновляет инстанс на месте; явный merge делает контракт стабильным и для моков.
   const plain = typeof user.toJSON === 'function' ? user.toJSON() : user;
   return publicUser({ ...plain, ...updates });
 }
 
-/** Повторная отправка ссылки. Ответ намеренно одинаковый для любого email. */
 async function resendVerification(rawEmail) {
   const email = typeof rawEmail === 'string' ? rawEmail.trim().toLowerCase() : '';
   if (!email) {
@@ -144,7 +139,6 @@ async function resendVerification(rawEmail) {
   await user.update({ verificationToken: tokenHash, verificationExpiresAt: expiresAt });
 
   const sent = await deliverEmail(sendVerificationEmail, user.email, token);
-  // Исключение только для автотестов: без MailHog они всё равно создают пользователя.
   if (!sent.ok && process.env.NODE_ENV !== 'test') {
     return {
       error: mailFailureMessage(sent, 'Не удалось отправить письмо подтверждения. Попробуйте позже.'),

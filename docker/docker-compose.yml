@@ -1,19 +1,5 @@
-# Лаба 8 — единый compose-файл: инфраструктура + приложение.
-#
-# Режимы:
-#   Прод (сдача лабы):   docker compose -f docker/docker-compose.yml up --build
-#                         → postgres + mongo + mailhog + backend + frontend (nginx :80)
-#   Dev (hot-reload):     make dev
-#                         → профиль dev: backend-dev (nodemon) + frontend-dev (vite :5173)
-#   Только инфраструктура: make up
-#
-# Сети (изоляция):
-#   frontend — frontend ↔ backend (nginx/vite проксируют на backend)
-#   backend  — backend ↔ postgres/mongo/mailhog; фронтенд сюда НЕ попадает,
-#              БД видны только бэкенду. Порты БД опубликованы на хост для DataGrip/psql.
 
 services:
-  # ─── Инфраструктура ────────────────────────────────────────────────
   postgres:
     image: postgres:16-alpine
     container_name: f1stats-postgres
@@ -60,8 +46,6 @@ services:
     networks:
       - backend
 
-  # ─── Redis (эпик-11): кэш, rate limit, Socket.IO adapter ───────────
-  # Порт опубликован только на localhost — для redis-cli с хоста.
   redis:
     image: redis:7-alpine
     container_name: f1stats-redis
@@ -79,28 +63,21 @@ services:
     networks:
       - backend
 
-  # ─── Backend (прод) ────────────────────────────────────────────────
-  # Порт на хост НЕ пробрасывается (решение сессии): доступ только через
-  # nginx-прокси frontend (/api, /socket.io).
   backend:
     build: ../server
     container_name: f1stats-backend
     restart: unless-stopped
     env_file: ../.env
     environment:
-      # Имена сервисов вместо localhost — контейнеры общаются по внутренней сети
       DATABASE_URL: postgresql://${POSTGRES_USER:-f1user}:${POSTGRES_PASSWORD:-f1pass}@postgres:5432/${POSTGRES_DB:-f1stats}
       MONGO_URI: mongodb://mongo:27017/f1stats
       SMTP_HOST: mailhog
       SMTP_PORT: "1025"
-      # CORS/ссылки в письмах — origin'ы nginx (:80) и vite (:5173)
       CORS_ORIGINS: http://localhost,http://localhost:5173
       FRONTEND_URL: http://localhost
       JWT_SECRET: ${JWT_SECRET:-dev-f1-secret-change-in-production}
-      # Redis (эпик-11): общий кэш, rate limit, Socket.IO adapter
       REDIS_URL: redis://redis:6379
       REDIS_ENABLED: ${REDIS_ENABLED:-true}
-      # production-секция config.json включает SSL для postgres — в контейнере его нет
       NODE_ENV: development
       PORT: "3000"
     depends_on:
@@ -111,7 +88,6 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      # node:22 умеет fetch — curl/wget в alpine-образе нет
       test:
         - CMD
         - node
@@ -125,7 +101,6 @@ services:
       - frontend
       - backend
 
-  # ─── Frontend (прод): многоэтапный образ → nginx + reverse-proxy ──
   frontend:
     build: ../client
     container_name: f1stats-frontend
@@ -138,17 +113,13 @@ services:
     networks:
       - frontend
 
-  # ─── Dev-стек (профиль "dev"): hot-reload ─────────────────────────
-  # Запуск: docker compose --profile dev up -d backend-dev frontend-dev
-  # (или make dev). Исходники монтируются с хоста, node_modules остаётся
-  # из образа — правки src подхватываются на лету.
 
   backend-dev:
     profiles: [dev]
     build: ../server
     container_name: f1stats-backend-dev
     restart: unless-stopped
-    command: npm run dev # nodemon (dev-скрипт)
+    command: npm run dev
     env_file: ../.env
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-f1user}:${POSTGRES_PASSWORD:-f1pass}@postgres:5432/${POSTGRES_DB:-f1stats}
@@ -181,14 +152,13 @@ services:
     profiles: [dev]
     build:
       context: ../client
-      target: builder # stage со сборочным окружением (vite), без nginx
+      target: builder
     container_name: f1stats-frontend-dev
     restart: unless-stopped
-    command: npm run dev # vite dev-сервер с прокси /api и /socket.io
+    command: npm run dev
     ports:
       - "5173:5173"
     environment:
-      # vite.config.js проксирует /api и /socket.io на dev-бэкенд внутри сети
       VITE_PROXY_TARGET: http://backend-dev:3000
     volumes:
       - ../client/src:/app/src
@@ -201,10 +171,6 @@ services:
       - frontend
       - backend
 
-  # ─── Мониторинг (эпик-09, Phase 6b): Loki + Promtail + Grafana ───
-  # Promtail собирает stdout всех контейнеров через docker_sd → Loki.
-  # Grafana: http://localhost:3001 (admin/admin или $GRAFANA_PASSWORD),
-  # дашборд «F1 Stats — логи» провижинен из monitoring/grafana/.
   loki:
     image: grafana/loki:3.2.1
     container_name: f1stats-loki
@@ -225,7 +191,6 @@ services:
     command: -config.file=/etc/promtail/config.yml
     volumes:
       - ./monitoring/promtail-config.yml:/etc/promtail/config.yml:ro
-      # docker_sd: доступ к API демона для диска контейнеров…
       - /var/run/docker.sock:/var/run/docker.sock:ro
     depends_on:
       - loki

@@ -1,9 +1,5 @@
 'use strict';
 
-/**
- * cacheService — unit-тесты fallback-режима (Redis в тестах отключён).
- */
-
 const cacheService = require('../src/cache/cacheService');
 const keys = require('../src/cache/keys');
 

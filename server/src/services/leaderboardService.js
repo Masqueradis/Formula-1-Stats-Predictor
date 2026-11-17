@@ -1,21 +1,5 @@
 'use strict';
 
-/**
- * US-6 + UC-2 — рейтинг предсказателей (leaderboard) и начисление баллов.
- *
- * Данные: голоса в MongoDB (`race_prediction_docs.votes`), фактические результаты
- * в PostgreSQL (`race_results`) — кросс-БД, поэтому join делается в коде сервиса.
- *
- * Правило подсчёта баллов (UC-2), одинаково для kind='full' и kind='top3':
- * - за каждый pick: предсказанное место == фактическому  → +3 (точное место);
- * - иначе: предсказан на ТОП-3 (position ≤ 3) И пилот реально финишировал
- *   в ТОП-3 (≤ 3), но с другим местом → +1;
- * - пилот не финишировал / нет результата → 0.
- *
- * Оценка идемпотентна: cron пересчитывает все завершённые гонки целиком
- * (исправления результатов подхватятся), неизменённые голоса не перезаписываются.
- */
-
 const raceRepository = require('../repositories/raceRepository');
 const raceResultRepository = require('../repositories/raceResultRepository');
 const userRepository = require('../repositories/userRepository');
@@ -29,7 +13,6 @@ function httpError(status, message) {
   return err;
 }
 
-/** Поиск гонки в PostgreSQL по externalId (ключ Mongo) или по числовому id — как в predictionService */
 async function resolveRace(rawRaceId) {
   if (!rawRaceId) return null;
   const byExternal = await raceRepository.findOne({ externalId: String(rawRaceId) });
@@ -38,7 +21,6 @@ async function resolveRace(rawRaceId) {
   return Number.isInteger(id) && id > 0 ? raceRepository.findById(id) : null;
 }
 
-/** Баллы одного голоса: { score, exactHits, podiumHits } */
 function scoreVote(vote, positionByDriver) {
   let score = 0;
   let exactHits = 0;
@@ -46,7 +28,7 @@ function scoreVote(vote, positionByDriver) {
 
   for (const pick of vote.picks || []) {
     const actual = positionByDriver.get(pick.driverId);
-    if (!actual || actual < 1) continue; // не финишировал / нет данных
+    if (!actual || actual < 1) continue;
     if (pick.position === actual) {
       score += RULES.exact;
       exactHits += 1;
@@ -59,10 +41,6 @@ function scoreVote(vote, positionByDriver) {
   return { score, exactHits, podiumHits };
 }
 
-/**
- * Пересчитать баллы всех голосов на завершённые гонки.
- * @returns {{ races: number, votes: number }} сколько гонок обработано и баллов записано
- */
 async function recalculate() {
   const docs = await predictionRepository.findAll({ season: -1, round: -1 });
 
@@ -104,10 +82,6 @@ async function recalculate() {
   return { races, votes };
 }
 
-/**
- * Текущий рейтинг: агрегация из Mongo + актуальные username из PostgreSQL
- * (удалённые пользователи отфильтровываются, nickname берётся свежий).
- */
 async function getLeaderboard(limit = 50) {
   const [rows, total, users] = await Promise.all([
     predictionRepository.aggregateLeaderboard(limit),

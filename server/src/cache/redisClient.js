@@ -1,15 +1,5 @@
 'use strict';
 
-/**
- * Единственный Redis-клиент приложения (эпик-11).
- *
- * Redis — деградируемая зависимость:
- * - `NODE_ENV=test` или `REDIS_ENABLED=false` → слой выключен;
- * - нет `REDIS_URL` → слой выключен;
- * - Redis недоступен → одно предупреждение и fallback на память
- *   (реализован в cacheService), процесс не падает.
- */
-
 const { createClient } = require('redis');
 const logger = require('../utils/logger');
 
@@ -17,7 +7,6 @@ let client = null;
 let connectPromise = null;
 let lastFailureAt = 0;
 
-// Не пытаемся переподключаться на каждый запрос, если Redis лежит.
 const RETRY_COOLDOWN_MS = 30 * 1000;
 const CONNECT_TIMEOUT_MS = 1200;
 const PING_TIMEOUT_MS = 500;
@@ -37,9 +26,6 @@ function createRedisClient(url) {
     },
   });
 
-  // node-redis требует обработчик error, иначе событие считается unhandled.
-  // Во время неудачного connect событие приходит на каждую попытку — логируем
-  // только первую, чтобы не засорять Loki.
   let errorLogged = false;
   let connected = false;
 
@@ -67,7 +53,6 @@ async function connect() {
     try {
       client.disconnect();
     } catch {
-      // ignore
     }
     client = null;
   }
@@ -80,7 +65,6 @@ async function connect() {
     try {
       instance = createRedisClient(process.env.REDIS_URL);
       const task = instance.connect();
-      // При недоступном Redis connect() может ретраиться бесконечно — ограничиваем.
       task.catch(() => {});
 
       const connected = await Promise.race([
@@ -97,7 +81,6 @@ async function connect() {
         try {
           instance.disconnect();
         } catch {
-          // клиент мог не успеть создать соединение
         }
         return null;
       }
@@ -112,7 +95,6 @@ async function connect() {
         try {
           instance.disconnect();
         } catch {
-          // ignore
         }
       }
       return null;

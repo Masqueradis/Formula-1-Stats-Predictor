@@ -1,11 +1,5 @@
 'use strict';
 
-/**
- * redisAdapter — защита от unhandledRejection из fire-and-forget publish/subscribe.
- * При обрыве Redis @socket.io/redis-adapter не await'ит промисы node-redis;
- * обёртка должна гасить ClientOfflineError и не ронять процесс.
- */
-
 const { EventEmitter } = require('events');
 
 jest.mock('../src/cache/redisClient', () => ({

@@ -5,8 +5,6 @@ import AppLayout from './layout/AppLayout'
 import Spinner from './components/ui/Spinner'
 import DashboardPage from './pages/DashboardPage'
 
-// Code-splitting (эпик-09): каждая страница — отдельный чанк, подтягивается при навигации.
-// Dashboard (landing) остаётся в основном чанке — чтобы не было водопада на первом экране.
 const PilotsPage = lazy(() => import('./pages/PilotsPage'))
 const DriverDetailPage = lazy(() => import('./pages/DriverDetailPage'))
 const TeamsPage = lazy(() => import('./pages/TeamsPage'))

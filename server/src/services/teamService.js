@@ -49,7 +49,6 @@ async function currentSeason() {
   return teamRepository.currentSeason();
 }
 
-/** Эпик-10: состав команды можно смотреть в конкретном сезоне (?season=YYYY). */
 async function resolveSeason(raw) {
   if (raw === undefined || raw === null || raw === '') return currentSeason();
   const value = Number(raw);

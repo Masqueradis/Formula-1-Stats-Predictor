@@ -8,8 +8,6 @@ test('dev: относительный /api даёт пустую базу (то�
 })
 
 test('prod: суффикс /api снимается с полного URL', () => {
-  // Не вставляем сюда боевой адрес: Netlify Secret Scanning считает значение
-  // VITE_API_URL секретом и роняет сборку при совпадении строки в репозитории.
   assert.equal(
     resolveSocketBaseUrl('https://api.example.com/api', undefined),
     'https://api.example.com',
