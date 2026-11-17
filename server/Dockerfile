@@ -4,6 +4,10 @@ FROM node:22-alpine
 
 WORKDIR /app
 
+# Диагностика контекста сборки: в логах Render видно, что именно попало в контекст.
+# Если здесь видны package.json и package-lock.json — Root Directory выставлен верно.
+RUN echo "[docker] build context contents:" && ls -la
+
 # Явно копируем оба манифеста ДО установки зависимостей.
 # npm ci строго требует package-lock.json: если файлов нет в контексте сборки,
 # ошибка будет видна на этом шаге, а не как непонятный сбой npm ci.
