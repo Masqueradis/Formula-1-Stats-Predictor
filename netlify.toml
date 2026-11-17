@@ -10,7 +10,7 @@
   NODE_VERSION = "22"
 
 # VITE_API_URL задаётся в панели Netlify (Site settings → Environment variables):
-# VITE_API_URL = "https://simply-lovely-api.onrender.com/api"
+# VITE_API_URL = "https://<backend-host>/api"
 
 [[redirects]]
   from = "/*"

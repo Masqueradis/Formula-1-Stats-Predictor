@@ -26,7 +26,7 @@ SPA для статистики Формулы-1, исторических Гр�
 - **Render free:** эфемерная ФС, 512 МБ, нет shell/job’ов (миграции/сиды Postgres выполняет `server/docker-entrypoint.sh`; `seed:mongo` и тяжёлый бэкфилл — локально), 750 инстанс-часов/мес, WebSocket на одном инстансе.
 
 ### Переменные окружения (production)
-Задаются в панелях Render/Netlify (секреты не коммитить). Минимум для backend: `NODE_ENV=production`, `DATABASE_URL`, `MONGO_URI`, `JWT_SECRET`, `CORS_ORIGINS=https://tourmaline-wisp-d2b6de.netlify.app`, `FRONTEND_URL=https://tourmaline-wisp-d2b6de.netlify.app`, `REDIS_ENABLED=false`, `EMAIL_ENABLED=false`. Frontend (Netlify build env): `VITE_API_URL=https://simply-lovely-api.onrender.com/api`. Полный список — `.env.example`.
+Задаются в панелях Render/Netlify (секреты не коммитить). Минимум для backend: `NODE_ENV=production`, `DATABASE_URL`, `MONGO_URI`, `JWT_SECRET`, `CORS_ORIGINS=https://tourmaline-wisp-d2b6de.netlify.app`, `FRONTEND_URL=https://tourmaline-wisp-d2b6de.netlify.app`, `REDIS_ENABLED=false`, `EMAIL_ENABLED=false`. Frontend (Netlify build env): `VITE_API_URL=https://<backend-host>/api`. Полный список — `.env.example`.
 
 ## Стек
 
