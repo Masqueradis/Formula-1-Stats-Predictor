@@ -1,4 +1,5 @@
 const express = require('express');
+const helmet = require('helmet');
 const corsMiddleware = require('./middleware/cors');
 const requestLogger = require('./middleware/requestLogger');
 const routes = require('./routes');
@@ -11,6 +12,7 @@ const app = express();
 app.set('trust proxy', 1);
 app.set('etag', false);
 
+app.use(helmet({ crossOriginResourcePolicy: false }));
 app.use(corsMiddleware);
 app.use(express.json());
 
