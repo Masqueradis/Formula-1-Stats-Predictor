@@ -32,10 +32,18 @@ function smtpConfig() {
  * поэтому регистрация не должна создавать «висячий» не подтверждённый аккаунт.
  * В dev достаточно локального MailHog (авторизация не нужна).
  */
-function isEmailConfigured() {
+function missingMailConfig() {
+  if (!isProduction()) return [];
   const config = smtpConfig();
-  if (!isProduction()) return true;
-  return Boolean(config.user && config.pass && process.env.MAIL_FROM);
+  const missing = [];
+  if (!config.user) missing.push('SMTP_USER');
+  if (!config.pass) missing.push('SMTP_PASS');
+  if (!process.env.MAIL_FROM) missing.push('MAIL_FROM');
+  return missing;
+}
+
+function isEmailConfigured() {
+  return missingMailConfig().length === 0;
 }
 
 function getTransport() {
@@ -62,8 +70,9 @@ function fromAddress() {
 }
 
 async function sendMail({ to, subject, html }) {
-  if (!isEmailConfigured()) {
-    return { ok: false, error: 'SMTP is not configured' };
+  const missing = missingMailConfig();
+  if (missing.length) {
+    return { ok: false, error: `SMTP is not configured (missing: ${missing.join(', ')})` };
   }
   try {
     await getTransport().sendMail({
@@ -161,6 +170,7 @@ function sendRaceReminderEmail(to, username, race, favoriteDrivers = []) {
 
 module.exports = {
   isEmailConfigured,
+  missingMailConfig,
   smtpConfig,
   verificationLink,
   sendMail,

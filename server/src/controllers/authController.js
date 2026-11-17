@@ -4,7 +4,7 @@ const apiResponse = require('../utils/apiResponse');
 async function register(req, res) {
   try {
     const result = await authService.register(req.body);
-    if (result.error) return apiResponse.error(res, result.error, result.status || 400);
+    if (result.error) return apiResponse.error(res, result.error, result.status || 400, result.details);
     return apiResponse.created(res, result.data);
   } catch (err) {
     if (err.name === 'SequelizeUniqueConstraintError') {
@@ -17,7 +17,7 @@ async function register(req, res) {
 async function resendVerification(req, res) {
   try {
     const result = await authService.resendVerification(req.body?.email);
-    if (result.error) return apiResponse.error(res, result.error, result.status || 400);
+    if (result.error) return apiResponse.error(res, result.error, result.status || 400, result.details);
     return apiResponse.success(res, result.data);
   } catch (err) {
     return apiResponse.error(res, 'Не удалось отправить письмо', 500, err.message);

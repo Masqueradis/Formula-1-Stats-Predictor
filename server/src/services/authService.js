@@ -60,8 +60,12 @@ async function register({ username, email, password }) {
   if (!sent.ok && process.env.NODE_ENV === 'production') {
     // Не оставляем аккаунт, для которого пользователь никогда не получит ссылку.
     await userRepository.remove(user.id);
-    logger.error('auth.register.mail_failed', { userId: user.id });
-    return { error: 'Не удалось отправить письмо подтверждения. Попробуйте позже.', status: 503 };
+    logger.error('auth.register.mail_failed', { userId: user.id, reason: sent.error });
+    return {
+      error: 'Не удалось отправить письмо подтверждения. Попробуйте позже.',
+      status: 503,
+      details: sent.error,
+    };
   }
   if (!sent.ok) {
     logger.warn('auth.register.mail_failed', { userId: user.id, error: sent.error });
@@ -131,7 +135,11 @@ async function resendVerification(rawEmail) {
 
   const sent = await deliverEmail(sendVerificationEmail, user.email, token);
   if (!sent.ok && process.env.NODE_ENV === 'production') {
-    return { error: 'Не удалось отправить письмо подтверждения. Попробуйте позже.', status: 503 };
+    return {
+      error: 'Не удалось отправить письмо подтверждения. Попробуйте позже.',
+      status: 503,
+      details: sent.error,
+    };
   }
   if (!sent.ok) logger.warn('auth.resend.mail_failed', { userId: user.id, error: sent.error });
 

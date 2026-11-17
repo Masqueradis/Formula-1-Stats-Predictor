@@ -46,8 +46,12 @@ describe('emailService.smtpConfig / isEmailConfigured', () => {
 
     const service = require('../src/services/emailService');
     expect(service.isEmailConfigured()).toBe(false);
+    expect(service.missingMailConfig()).toEqual(['SMTP_USER', 'SMTP_PASS', 'MAIL_FROM']);
     await expect(service.sendMail({ to: 'fan@test.local', subject: 'test', html: '<b>test</b>' }))
-      .resolves.toEqual({ ok: false, error: 'SMTP is not configured' });
+      .resolves.toEqual({
+        ok: false,
+        error: 'SMTP is not configured (missing: SMTP_USER, SMTP_PASS, MAIL_FROM)',
+      });
   });
 
   test('prod с полным набором переменных считается настроенным', () => {
