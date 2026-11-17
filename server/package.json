@@ -19,7 +19,8 @@
     "test:coverage": "jest --runInBand --coverage",
     "test:integration": "jest --runInBand tests/integration",
     "test:mongo": "INTEGRATION=1 jest --runInBand tests/integration/mongo.integration.test.js",
-    "sync:history": "node src/scripts/syncHistory.js"
+    "sync:history": "node src/scripts/syncHistory.js",
+    "sync:history:dump": "node src/scripts/importDumpHistory.js"
   },
   "jest": {
     "coverageThreshold": {
