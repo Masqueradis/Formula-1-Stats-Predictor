@@ -6,9 +6,11 @@ import { useAuth } from '../context/useAuth'
 import NavBar from './NavBar'
 
 /**
- * Эпик-13 (BUG-01/02): sticky-header в один ряд.
- * До `lg` — бургер и выпадающая панель (закрытие по Esc, фону и переходу),
- * на `lg+` — вся навигация в одном ряду без переносов.
+ * Эпик-13 (BUG-01/02, регресс 18.11): sticky-header на всю ширину экрана.
+ * Верхний ряд: название прижато к левому краю, счётчик онлайна, тема,
+ * имя пользователя и «Выйти» — к правому. Навигация перенесена во второй
+ * ряд (`lg+`), чтобы пункты не наслаивались на бренд и действия.
+ * До `lg` — бургер и выпадающая панель (закрытие по Esc, фону и переходу).
  */
 export default function Header({ theme, onToggleTheme }) {
   const { user, logout } = useAuth()
@@ -37,7 +39,8 @@ export default function Header({ theme, onToggleTheme }) {
 
   return (
     <header className="sticky top-0 z-40 border-b border-border-soft bg-card/90 backdrop-blur transition-colors dark:border-border-dark dark:bg-card-dark/90">
-      <div className="mx-auto flex h-14 w-full max-w-[1400px] items-center gap-2 px-3 sm:px-4 lg:h-16 lg:gap-3 lg:px-6">
+      {/* Верхний ряд: бренд — левый край, действия — правый край экрана */}
+      <div className="flex h-14 w-full items-center justify-between gap-2 px-3 sm:px-4 lg:px-5">
         <Link to="/" className="flex shrink-0 items-center gap-2.5" aria-label="Simply Lovely — на главную">
           <span
             className="flex h-9 w-9 items-center justify-center rounded-full bg-primary font-black text-white transition-colors dark:bg-accent"
@@ -55,17 +58,13 @@ export default function Header({ theme, onToggleTheme }) {
           </span>
         </Link>
 
-        <div className="hidden min-w-0 flex-1 items-center justify-center lg:flex">
-          <NavBar />
-        </div>
-
-        <div className="ml-auto flex shrink-0 items-center gap-1.5 lg:gap-2">
-          <LiveIndicator compact className="hidden xl:flex" />
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+          <LiveIndicator compact className="flex" />
           <ThemeToggle theme={theme} onToggle={onToggleTheme} />
 
           {user ? (
-            <div className="hidden items-center gap-2 border-l border-border-soft pl-3 dark:border-border-dark lg:flex">
-              <span className="hidden max-w-[120px] truncate text-sm font-medium text-foreground dark:text-foreground-dark xl:block">
+            <div className="hidden items-center gap-2 border-l border-border-soft pl-2 dark:border-border-dark sm:flex lg:pl-3">
+              <span className="max-w-[140px] truncate text-sm font-medium text-foreground dark:text-foreground-dark">
                 {user.username}
               </span>
               <button
@@ -76,7 +75,7 @@ export default function Header({ theme, onToggleTheme }) {
               </button>
             </div>
           ) : (
-            <div className="hidden items-center gap-2 border-l border-border-soft pl-3 dark:border-border-dark lg:flex">
+            <div className="hidden items-center gap-2 border-l border-border-soft pl-2 dark:border-border-dark sm:flex lg:pl-3">
               <Link
                 to="/login"
                 className="rounded-lg px-3 py-1.5 text-xs font-semibold text-muted transition-colors hover:text-foreground dark:text-muted-dark dark:hover:text-foreground-dark"
@@ -110,6 +109,13 @@ export default function Header({ theme, onToggleTheme }) {
               </svg>
             )}
           </button>
+        </div>
+      </div>
+
+      {/* Второй ряд: навигация больше не конкурирует за место с брендом и действиями */}
+      <div className="hidden border-t border-border-soft dark:border-border-dark lg:block">
+        <div className="w-full overflow-x-auto px-4 lg:px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <NavBar />
         </div>
       </div>
 
