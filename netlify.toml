@@ -1,0 +1,18 @@
+# Корневой конфиг Netlify: работает независимо от того, что Base directory
+# выставлен в панели (client/ или пустой). Дублирует client/netlify.toml
+# и дополнительно гарантирует SPA-редирект через public/_redirects.
+[build]
+  base = "client"
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+# VITE_API_URL задаётся в панели Netlify (Site settings → Environment variables):
+# VITE_API_URL = "https://simply-lovely-api.onrender.com/api"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
