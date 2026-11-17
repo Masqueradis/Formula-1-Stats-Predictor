@@ -13,6 +13,8 @@ jest.mock('../src/models', () => {
     Race: createFakeModel(),
     RaceResult: createFakeModel(),
     SeasonTeam: createFakeModel(),
+    // Сверка состава после syncSeason пишет isReserve в транзакции.
+    sequelize: { transaction: async (fn) => fn() },
   };
 });
 

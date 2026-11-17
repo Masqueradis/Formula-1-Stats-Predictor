@@ -9,15 +9,12 @@ function toPlain(record) {
 }
 
 /**
- * Эпик-13 (BUG-07): текущая команда — строка season_teams с максимальным
+ * Эпик-13 (BUG-07/08): текущая команда — строка season_teams с максимальным
  * сезоном (а не последняя по id: исторический бэкфилл добавляет записи позже).
  * При равном сезоне приоритет у боевого пилота (isReserve=false), затем меньший id.
+ * Общий helper: используется и в карточках пилотов, и в личном зачёте.
  */
-function sanitizeDriver(record, { currentSeason = null } = {}) {
-  const json = toPlain(record);
-  if (!json || typeof json !== 'object') return json;
-  const { seasonTeams, ...rest } = json;
-
+function pickCurrentSeasonTeam(seasonTeams) {
   const rows = Array.isArray(seasonTeams)
     ? seasonTeams.filter(Boolean)
     : seasonTeams
@@ -32,9 +29,17 @@ function sanitizeDriver(record, { currentSeason = null } = {}) {
     return (Number(a.id) || 0) - (Number(b.id) || 0);
   });
 
+  return sorted[0] || null;
+}
+
+function sanitizeDriver(record, { currentSeason = null } = {}) {
+  const json = toPlain(record);
+  if (!json || typeof json !== 'object') return json;
+  const { seasonTeams, ...rest } = json;
+
   let team = null;
   let teamSeason = null;
-  const latest = sorted[0];
+  const latest = pickCurrentSeasonTeam(seasonTeams);
   if (latest) {
     team = latest.team || null;
     teamSeason = latest.season ?? null;
@@ -79,4 +84,4 @@ function cleanArray(items, sanitizer) {
   return items.map((item) => (sanitizer ? sanitizer(item) : toPlain(item)));
 }
 
-module.exports = { toPlain, sanitizeDriver, sanitizeRace, cleanArray };
+module.exports = { toPlain, pickCurrentSeasonTeam, sanitizeDriver, sanitizeRace, cleanArray };
