@@ -15,6 +15,12 @@ test('BUG-05: приоритет у pointerWithin (точная зона пул�
   assert.deepEqual(strategy({}), ['pool'])
 })
 
+test('BUG-05: пилот со слота возвращается в пул даже при pointer-коллизии со слотом', () => {
+  const strategy = makeStrategy({ pointer: ['slot-0', 'pool'] })
+  const result = strategy({ active: { data: { current: { type: 'slot' } } } })
+  assert.deepEqual(result, ['pool', 'slot-0'])
+})
+
 test('BUG-05: без pointer-коллизий используется rectIntersection', () => {
   const strategy = makeStrategy({ pointer: [], rect: ['slot'], closest: ['slot'] })
   assert.deepEqual(strategy({}), ['slot'])

@@ -72,6 +72,49 @@ function PoolChip({ entry, canAssign, onPick }) {
   )
 }
 
+/**
+ * Колонка свободных пилотов — droppable-зона «Вернуть в пул».
+ * Хук useDroppable обязан вызываться внутри DndContext: вне провайдера
+ * dnd-kit/registration dispatch — noop, и зона просто не попадает в
+ * droppableContainers (возврат перетаскиванием молча не работает).
+ */
+function PoolColumn({ pool, canAssign, isOver, dragType, onPick }) {
+  const { setNodeRef } = useDroppable({ id: 'pool' })
+  const active = isOver && dragType === 'slot'
+
+  return (
+    <div>
+      <h3 className="mb-2 text-sm font-bold uppercase tracking-wide text-muted dark:text-muted-dark">
+        Свободные пилоты ({pool.length})
+      </h3>
+      <div
+        ref={setNodeRef}
+        className={`rounded-lg p-1 transition-colors ${
+          active ? 'bg-primary/5 ring-2 ring-primary dark:bg-accent/5 dark:ring-accent' : ''
+        }`}
+      >
+        <div
+          className={`mb-2 flex min-h-[68px] items-center justify-center rounded-lg border-2 border-dashed px-3 py-3 text-center text-xs font-semibold transition-colors ${
+            active
+              ? 'border-primary bg-primary/10 text-primary dark:border-accent dark:bg-accent/10 dark:text-accent'
+              : 'border-border-soft text-muted dark:border-border-dark dark:text-muted-dark'
+          }`}
+        >
+          {active ? 'Отпустите — пилот вернётся в пул' : 'Вернуть в пул — перетащите сюда пилота со слота'}
+        </div>
+        <div className="flex flex-col gap-1.5">
+          {pool.map((e) => (
+            <PoolChip key={e.driverId} entry={e} canAssign={canAssign} onPick={onPick} />
+          ))}
+          {pool.length === 0 && (
+            <p className="px-2 py-3 text-center text-sm text-muted dark:text-muted-dark">Все пилоты расставлены ✓</p>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 /** Строка-слот (позиция 1..N): перетаскивается за «ручку» для смены мест, принимает пилота из пула */
 function SlotRow({ index, entry, canEdit, onClear, isOver, dragType }) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, isDragging, isSorting } = useSortable({
@@ -200,8 +243,6 @@ export default function VoteBoard({ doc, user, onChanged, onBusyChange }) {
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
     useSensor(KeyboardSensor),
   )
-
-  const { setNodeRef: setPoolRef } = useDroppable({ id: 'pool' })
 
   const assignToFirstEmpty = (driverId) => {
     if (!canEdit) return
@@ -437,40 +478,14 @@ export default function VoteBoard({ doc, user, onChanged, onBusyChange }) {
         <div className="grid gap-6 lg:grid-cols-2">
           {/* Пул свободных пилотов + явная зона возврата (BUG-05, регресс 18.11).
               Droppable — вся колонка: пилота можно отпустить и на список, а не
-              только на узкую полоску. */}
-          <div>
-            <h3 className="mb-2 text-sm font-bold uppercase tracking-wide text-muted dark:text-muted-dark">
-              Свободные пилоты ({pool.length})
-            </h3>
-            <div
-              ref={setPoolRef}
-              className={`rounded-lg p-1 transition-colors ${
-                overId === 'pool' && dragState?.type === 'slot'
-                  ? 'bg-primary/5 ring-2 ring-primary dark:bg-accent/5 dark:ring-accent'
-                  : ''
-              }`}
-            >
-              <div
-                className={`mb-2 flex min-h-[68px] items-center justify-center rounded-lg border-2 border-dashed px-3 py-3 text-center text-xs font-semibold transition-colors ${
-                  overId === 'pool' && dragState?.type === 'slot'
-                    ? 'border-primary bg-primary/10 text-primary dark:border-accent dark:bg-accent/10 dark:text-accent'
-                    : 'border-border-soft text-muted dark:border-border-dark dark:text-muted-dark'
-                }`}
-              >
-                {overId === 'pool' && dragState?.type === 'slot'
-                  ? 'Отпустите — пилот вернётся в пул'
-                  : 'Вернуть в пул — перетащите сюда пилота со слота'}
-              </div>
-              <div className="flex flex-col gap-1.5">
-                {pool.map((e) => (
-                  <PoolChip key={e.driverId} entry={e} canAssign={canEdit && emptySlots.length > 0} onPick={assignToFirstEmpty} />
-                ))}
-                {pool.length === 0 && (
-                  <p className="px-2 py-3 text-center text-sm text-muted dark:text-muted-dark">Все пилоты расставлены ✓</p>
-                )}
-              </div>
-            </div>
-          </div>
+              только на узкую полоску. Хук внутри PoolColumn — строго внутри DndContext. */}
+          <PoolColumn
+            pool={pool}
+            canAssign={canEdit && emptySlots.length > 0}
+            isOver={overId === 'pool'}
+            dragType={dragState?.type}
+            onPick={assignToFirstEmpty}
+          />
 
           {/* Слоты позиций 1..N */}
           <div>
