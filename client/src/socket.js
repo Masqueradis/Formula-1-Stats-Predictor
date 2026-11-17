@@ -1,5 +1,6 @@
 import { io } from 'socket.io-client'
 import { getToken } from './api'
+import { resolveSocketBaseUrl } from './utils/socketUrl'
 
 /**
  * Синглтон Socket.IO-соединения (лаба 7).
@@ -9,10 +10,10 @@ import { getToken } from './api'
  */
 
 const API_URL = import.meta.env.VITE_API_URL || '/api'
-// База сокета — тот же origin, что и API: '' → io() подключится к window.location
-// (проксируют vite dev-сервер и nginx; см. server.proxy в vite.config.js)
-export const SOCKET_URL =
-  import.meta.env.VITE_SOCKET_URL || API_URL.replace(/^\/api\/?$/, '')
+// '' → io() подключится к window.location (vite dev / nginx).
+// Полный прод-URL заканчивается на /api — суффикс снимается, иначе Socket.IO
+// уйдёт в несуществующий namespace /api и presence не придёт никогда.
+export const SOCKET_URL = resolveSocketBaseUrl(API_URL, import.meta.env.VITE_SOCKET_URL)
 
 let socket = null
 

@@ -435,30 +435,40 @@ export default function VoteBoard({ doc, user, onChanged, onBusyChange }) {
         onDragCancel={handleDragCancel}
       >
         <div className="grid gap-6 lg:grid-cols-2">
-          {/* Пул свободных пилотов + явная зона возврата (BUG-05) */}
+          {/* Пул свободных пилотов + явная зона возврата (BUG-05, регресс 18.11).
+              Droppable — вся колонка: пилота можно отпустить и на список, а не
+              только на узкую полоску. */}
           <div>
             <h3 className="mb-2 text-sm font-bold uppercase tracking-wide text-muted dark:text-muted-dark">
               Свободные пилоты ({pool.length})
             </h3>
             <div
               ref={setPoolRef}
-              className={`mb-2 flex min-h-[68px] items-center justify-center rounded-lg border-2 border-dashed px-3 py-3 text-center text-xs font-semibold transition-colors ${
+              className={`rounded-lg p-1 transition-colors ${
                 overId === 'pool' && dragState?.type === 'slot'
-                  ? 'border-primary bg-primary/10 text-primary dark:border-accent dark:bg-accent/10 dark:text-accent'
-                  : 'border-border-soft text-muted dark:border-border-dark dark:text-muted-dark'
+                  ? 'bg-primary/5 ring-2 ring-primary dark:bg-accent/5 dark:ring-accent'
+                  : ''
               }`}
             >
-              {overId === 'pool' && dragState?.type === 'slot'
-                ? 'Отпустите — пилот вернётся в пул'
-                : 'Вернуть в пул — перетащите сюда пилота со слота'}
-            </div>
-            <div className="flex flex-col gap-1.5">
-              {pool.map((e) => (
-                <PoolChip key={e.driverId} entry={e} canAssign={canEdit && emptySlots.length > 0} onPick={assignToFirstEmpty} />
-              ))}
-              {pool.length === 0 && (
-                <p className="text-sm text-muted dark:text-muted-dark">Все пилоты расставлены ✓</p>
-              )}
+              <div
+                className={`mb-2 flex min-h-[68px] items-center justify-center rounded-lg border-2 border-dashed px-3 py-3 text-center text-xs font-semibold transition-colors ${
+                  overId === 'pool' && dragState?.type === 'slot'
+                    ? 'border-primary bg-primary/10 text-primary dark:border-accent dark:bg-accent/10 dark:text-accent'
+                    : 'border-border-soft text-muted dark:border-border-dark dark:text-muted-dark'
+                }`}
+              >
+                {overId === 'pool' && dragState?.type === 'slot'
+                  ? 'Отпустите — пилот вернётся в пул'
+                  : 'Вернуть в пул — перетащите сюда пилота со слота'}
+              </div>
+              <div className="flex flex-col gap-1.5">
+                {pool.map((e) => (
+                  <PoolChip key={e.driverId} entry={e} canAssign={canEdit && emptySlots.length > 0} onPick={assignToFirstEmpty} />
+                ))}
+                {pool.length === 0 && (
+                  <p className="px-2 py-3 text-center text-sm text-muted dark:text-muted-dark">Все пилоты расставлены ✓</p>
+                )}
+              </div>
             </div>
           </div>
 

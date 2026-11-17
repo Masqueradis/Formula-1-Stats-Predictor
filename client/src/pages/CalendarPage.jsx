@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import api from '../api'
 import Card from '../components/ui/Card'
 import Spinner from '../components/ui/Spinner'
+import { FALLBACK_STATUSES, fetchOpenMeteoWeather } from '../utils/weather'
 
 const STATUS = {
   finished: { label: 'Завершена', className: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' },
@@ -32,10 +33,11 @@ function daysUntil(dateValue) {
 }
 
 /**
- * Погода на уик-энд ГП (эпик-09, P2): ленивая загрузка по клику —
- * бэкенд ходит в Open-Meteo и кэширует ответ на 30 минут.
+ * Погода на уик-энд ГП (эпик-09, P2): ленивая загрузка по клику.
+ * Бэкенд ходит в Open-Meteo и кэширует ответ на 30 минут; при его 429/502
+ * (лимит на IP Render) запрос уходит напрямую из браузера.
  */
-function WeatherWidget({ raceId }) {
+function WeatherWidget({ race }) {
   const [state, setState] = useState('idle') // idle | loading | ready | error
   const [weather, setWeather] = useState(null)
   const [error, setError] = useState('')
@@ -44,14 +46,42 @@ function WeatherWidget({ raceId }) {
     setState('loading')
     setError('')
     try {
-      const { data } = await api.get(`/races/${raceId}/weather`)
+      const { data } = await api.get(`/races/${race.id}/weather`)
       setWeather(data.data)
       setState('ready')
+      return
     } catch (err) {
       const status = err.response?.status
-      if (status === 404) setError('Прогноз появится не раньше чем за 16 дней до гонки')
-      else if (status === 400) setError('Погода доступна только для запланированных гонок')
-      else setError('Погода недоступна')
+      if (status === 404) {
+        setError('Прогноз появится не раньше чем за 16 дней до гонки')
+        setState('error')
+        return
+      }
+      if (status === 400) {
+        setError('Погода доступна только для запланированных гонок')
+        setState('error')
+        return
+      }
+      // 429/502 от бэкенда — лимит Open-Meteo на его IP. Ходим напрямую
+      // из браузера: CORS разрешён, лимит считается по IP пользователя.
+      if (!FALLBACK_STATUSES.includes(status) && status !== undefined) {
+        setError('Погода недоступна')
+        setState('error')
+        return
+      }
+    }
+
+    try {
+      const direct = await fetchOpenMeteoWeather({
+        raceId: race.id,
+        date: String(race.date).slice(0, 10),
+        latitude: race.trackLatitude,
+        longitude: race.trackLongitude,
+      })
+      setWeather(direct)
+      setState('ready')
+    } catch {
+      setError('Погода недоступна')
       setState('error')
     }
   }
@@ -194,7 +224,7 @@ export default function CalendarPage() {
                 </div>
 
                 <div className="col-span-2 flex min-w-0 flex-wrap items-center gap-2 sm:col-span-1 sm:justify-end sm:pt-1">
-                  {showWeather && <WeatherWidget raceId={race.id} />}
+                  {showWeather && <WeatherWidget race={race} />}
                   {showWeatherHint && (
                     <span className="text-xs text-muted dark:text-muted-dark sm:text-right">
                       Погода — за {WEATHER_HORIZON_DAYS} дн.
