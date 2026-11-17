@@ -114,7 +114,7 @@ export default function Header({ theme, onToggleTheme }) {
 
       {/* Второй ряд: навигация больше не конкурирует за место с брендом и действиями */}
       <div className="hidden border-t border-border-soft dark:border-border-dark lg:block">
-        <div className="w-full overflow-x-auto px-4 lg:px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex w-full justify-center overflow-x-auto px-4 lg:px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <NavBar />
         </div>
       </div>
