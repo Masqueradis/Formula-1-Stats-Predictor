@@ -4,12 +4,19 @@ FROM node:22-alpine
 
 WORKDIR /app
 
-# Сначала только манифесты — слой кэшируется, пока lock-файл не меняется
-COPY package*.json ./
+# Явно копируем оба манифеста ДО установки зависимостей.
+# npm ci строго требует package-lock.json: если файлов нет в контексте сборки,
+# ошибка будет видна на этом шаге, а не как непонятный сбой npm ci.
+COPY package.json package-lock.json ./
+
+# Диагностика для логов Render: видно, что попало в /app перед npm ci
+RUN echo "[docker] /app contents before npm ci:" && ls -la
+
 # Полная установка (включая dev): sequelize-cli нужен для миграций/сидов,
 # nodemon — для hot-reload в dev-режиме (профиль compose "dev")
 RUN npm ci
 
+# Только после установки копируем остальной код
 COPY . .
 
 # entrypoint: миграции + сиды перед стартом процесса
