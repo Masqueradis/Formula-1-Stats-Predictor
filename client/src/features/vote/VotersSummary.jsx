@@ -87,7 +87,7 @@ export default function VotersSummary({ doc, user, stats, onChanged }) {
               const isMine = user && Number(v.userId) === Number(user.id)
               return (
                 <li
-                  key={v.userId}
+                  key={v._id || v.userId}
                   className="flex flex-wrap items-center gap-2 rounded-lg border border-border-soft px-3 py-2 dark:border-border-dark"
                 >
                   <span className={`text-sm font-bold ${isMine ? 'text-primary dark:text-accent' : 'text-foreground dark:text-foreground-dark'}`}>
